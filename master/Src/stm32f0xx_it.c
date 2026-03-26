@@ -129,6 +129,18 @@ static void I2C_HandleTXIS(void)
   I2C->TXDR = I2C_message[nbytes_left] & 0xFF;
 }
 
+// FIXME: Implement
+static void I2C_HandleRXNE(void)
+{
+  // FIXME: Implement
+}
+
+// FIXME: Implement
+static void I2C_HandleNACK(void)
+{
+  // FIXME: Implement
+}
+
 static void I2C_HandleTC(void)
 {
   // FIXME: This function has no way to indicate which transaction in the chain it is handling
