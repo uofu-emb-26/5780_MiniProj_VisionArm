@@ -9,6 +9,8 @@ void SystemClock_Config(void);
   * @retval int
   */
 
+volatile uint8_t rx_data = 0;
+
 int main(void)
 {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -16,9 +18,62 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  
+  // Below is adapted from Lab 5 for slave setup
+
+  // Enable clock for GPIO port B 
+  RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+  // Enable clock for I2C2 peripheral
+  RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+
+  // PB11 = I2C2 SDA (data line)
+  // Clear mode bits for PB11
+  GPIOB->MODER &= ~(3 << (11 * 2));
+
+  // Set PB11 to "alternate function mode"
+  // this lets the I2C hardware control the pin instead of normal GPIO
+  GPIOB->MODER |=  (2 << (11 * 2));
+
+  // Set PB11 to open-drain
+  // required for I2C so multiple devices can share the same line safely
+  GPIOB->OTYPER |= (1 << 11);
+
+  // Select alternate function for PB11
+  // AFR[1] is used for pins 8–15
+  // AF1 corresponds to I2C2_SDA
+  GPIOB->AFR[1] &= ~(0xF << 12);   // clear previous setting
+  GPIOB->AFR[1] |=  (0x1 << 12);   // set AF1 (I2C2 SDA)
+
+  // PB13 = I2C2 SCL (clock line)
+  // Clear mode bits for PB13
+  GPIOB->MODER &= ~(3 << (13 * 2));
+
+  // Set PB13 to alternate function mode
+  GPIOB->MODER |=  (2 << (13 * 2));
+
+  // Set PB13 to open-drain
+  GPIOB->OTYPER |= (1 << 13);
+
+  // Select alternate function for PB13
+  // AF5 corresponds to I2C2_SCL
+  GPIOB->AFR[1] &= ~(0xF << 20);   // clear previous setting
+  GPIOB->AFR[1] |=  (0x5 << 20);   // set AF5 (I2C2 SCL)
+
+  // Disable I2C before setup
+  I2C2->CR1 &= ~I2C_CR1_PE;
+
+  // Timing from Lab 5
+  I2C2->TIMINGR = 0x10420F13;
+
+  // Set slave address = 0x10
+  I2C2->OAR1 = (0x10 << 1) | I2C_OAR1_OA1EN;
+
+  // Enable I2C
+  I2C2->CR1 |= I2C_CR1_PE;
+
   while (1)
   {
- 
+    rx_data = I2C2_Receive();
   }
   return -1;
 }
