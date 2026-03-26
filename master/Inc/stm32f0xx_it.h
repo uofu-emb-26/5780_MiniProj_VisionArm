@@ -6,6 +6,25 @@
 extern "C" {
 #endif
 
+#define I2C_MAX_MESSAGE_LEN 100
+
+typedef enum {
+  BUS_ERROR         = 1,
+  ARBITRATION_LOSS,
+  OVERRUN_UNDERRUN,
+  PEC_ERROR,
+  TIMEOUT,
+  SMBUS_ALERT,
+  NBYTES_INVALID
+} I2C_ERRORS;
+
+extern uint8_t I2C_read;
+extern uint8_t I2C_address;
+extern char I2C_message[100];
+extern uint8_t I2C_nbytes;
+extern uint8_t I2C_chain;
+extern uint8_t I2C_error;
+
 /* Exported functions prototypes ---------------------------------------------*/
 void NMI_Handler(void);
 void HardFault_Handler(void);

@@ -5,6 +5,14 @@
 #include "stm32f072xb.h"
 #include "stm32f0xx_hal_i2c.h"
 
+// ***** External Declarations *****
+uint8_t I2C_read = true;    // Set to true for a read transaction
+uint8_t I2C_address = 0;
+char I2C_message[I2C_MAX_MESSAGE_LEN];
+uint8_t I2C_nbytes = 0;
+uint8_t I2C_chain = false;    // Set to true to chain another transaction after the current one
+uint8_t I2C_error = 0;
+
 // ***** Helper Function Prototypes *****
 
 /**
