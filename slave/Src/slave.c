@@ -78,20 +78,18 @@ int main(void)
   return -1;
 }
 
-uint8_t I2C2_Receive(void) {
-  uint8_t data = 0; // Hold message to receive
-
-  // Blocking & Polling
+static void I2C2_Receive(I2C_TypeDef* I2C, uint8_t nbytes, char data[]) 
+{
   while(!(I2C2->ISR & I2C_ISR_ADDR)); // Wait till Master sends matching addr
   I2C2->ICR |= I2C_ICR_ADDRCF; // Write to Interrupt Clear Register
 
-  while(!(I2C2->ISR & I2C_ISR_RXNE));
-  data = I2C2->RXDR;
+  for(int i = 0; i < nbytes; i++) {
+    while(!(I2C2->ISR & I2C_ISR_RXNE));
+    data[i] = I2C->RXDR & I2C_RXDR_RXDATA;
+  }
 
   while(!(I2C2->ISR & I2C_ISR_STOPF));
   I2C2->ICR |= I2C_ICR_STOPCF;
-
-  return data;
 }
 
 /**
