@@ -128,3 +128,12 @@ static void I2C_HandleTXIS(void)
   nbytes_left--;
   I2C->TXDR = I2C_message[nbytes_left] & 0xFF;
 }
+
+static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn)
+{
+  // Set the address of the slave device (7-bit address is the bits SADD[7:1])
+  // Set the number of bytes to write or read
+  // Set RD_WRN based on the type of transaction
+  I2C->CR2 &= ~(I2C_CR2_NBYTES | I2C_CR2_SADD | I2C_CR2_RD_WRN);
+  I2C->CR2 |= (nbytes << I2C_CR2_NBYTES_Pos) | (device_address << (I2C_CR2_SADD_Pos + 1) | (rd_wrn << I2C_CR2_RD_WRN_Pos));
+}
