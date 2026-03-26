@@ -1,6 +1,28 @@
+#include <stdbool.h>
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx_it.h"
+#include "stm32f072xb.h"
+#include "stm32f0xx_hal_i2c.h"
+
+// ***** Helper Function Prototypes *****
+
+/**
+  * @brief A helper function for setting the CR2 registers of an I2C peripheral
+  *        for writing.
+  * This function does not set the START bit.
+  *
+  * See the `My_HAL_I2C_Write` function for additional parameter details.
+  * @param rd_wrn: A boolean that is true if the transaction is a read;
+  *                otherwise, false.
+  * @retval None
+  */
+static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn);
+
+static void I2C_HandleTXIS(void);
+static void I2C_HandleRXNE(void);
+static void I2C_HandleNACK(void);
+static void I2C_HandleTC(void);
 
 /******************************************************************************/
 /*           Cortex-M0 Processor Interruption and Exception Handlers          */
@@ -54,3 +76,33 @@ void SysTick_Handler(void)
 /* please refer to the startup file (startup_stm32f0xx.s).                    */
 /******************************************************************************/
 
+
+void I2C2_IRQHandler(void)
+{
+  if (I2C2->ISR & I2C_ISR_TXIS) {
+    I2C_HandleTXIS();
+  }
+  else if (I2C2->ISR & I2C_ISR_RXNE) {
+    I2C_HandleRXNE();
+  }
+  else if (I2C2->ISR & I2C_ISR_NACKF) {
+    I2C_HandleNACK();
+  }
+  else if (I2C2->ISR & I2C_ISR_TC) {
+    I2C_HandleTC();
+  }
+  else {
+    // Set transmission parameters in CR2 register
+    I2C_Setup(I2C2, I2C_address, I2C_nbytes, I2C_read);
+
+    if (I2C_nbytes > I2C_MAX_MESSAGE_LEN) {
+      I2C_error = NBYTES_INVALID;
+      return;
+    }
+
+    nbytes_left = I2C_nbytes;
+
+    // Start the transmission
+    I2C2->CR2 |= I2C_CR2_START;
+  }
+}
