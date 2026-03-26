@@ -1,5 +1,6 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
+#include "stm32f072xb.h"
 #include "i2c_config.h"
 
 void i2c_init(void){
@@ -31,9 +32,18 @@ void i2c_init(void){
     GPIOC->BSRR = (1 << 0);    // set PC0 High
 
 
+
+    //Control Register Setup
     __HAL_RCC_I2C2_CLK_ENABLE();
     I2C2->CR1 &= ~ I2C_CR1_PE;
 
+    I2C2->CR1 |= I2C_CR1_NACKIE;
+    I2C2->CR1 |= I2C_CR1_TXIE;
+    I2C2->CR1 |= I2C_CR1_RXIE;
+
+
+
+    //TODO: Update with Macros
     I2C2->TIMINGR =    
     (1  << 28) |
     (0x4 << 20) |
@@ -92,5 +102,6 @@ void i2c_write_reg(uint8_t slave_addr, uint8_t addr, uint8_t value){
     while(!(I2C2->ISR & I2C_ISR_TC));
     I2C2->CR2 |= I2C_CR2_STOP;
 }
+
 
 
