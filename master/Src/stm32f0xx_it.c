@@ -13,6 +13,11 @@ uint8_t I2C_nbytes = 0;
 uint8_t I2C_chain = false;    // Set to true to chain another transaction after the current one
 uint8_t I2C_error = 0;
 
+
+// ***** Internal Declarations *****
+static uint8_t nbytes_left = 0;
+
+
 // ***** Helper Function Prototypes *****
 
 /**
@@ -113,4 +118,13 @@ void I2C2_IRQHandler(void)
     // Start the transmission
     I2C2->CR2 |= I2C_CR2_START;
   }
+}
+
+
+// ***** Helper Functions *****
+
+static void I2C_HandleTXIS(void)
+{
+  nbytes_left--;
+  I2C->TXDR = I2C_message[nbytes_left] & 0xFF;
 }
