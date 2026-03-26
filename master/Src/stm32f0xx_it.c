@@ -129,6 +129,19 @@ static void I2C_HandleTXIS(void)
   I2C->TXDR = I2C_message[nbytes_left] & 0xFF;
 }
 
+static void I2C_HandleTC(void)
+{
+  // FIXME: This function has no way to indicate which transaction in the chain it is handling
+  if (I2C_chain) {
+    I2C_Setup(I2C2, I2C_address, I2C_nbytes, I2C_read);
+
+    I2C2->CR2 |= I2C_CR2_START;
+  }
+  else {
+    I2C->CR2 |= I2C_CR2_STOP;
+  }
+}
+
 static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn)
 {
   // Set the address of the slave device (7-bit address is the bits SADD[7:1])
