@@ -9,7 +9,9 @@ void SystemClock_Config(void);
   * @retval int
   */
 
-volatile uint8_t rx_data = 0;
+volatile uint8_t rx_buffer[MAX_RX_BYTES]; // Array to hold incoming data
+volatile uint8_t rx_index = 0; // Keeps track of which byte we are on
+volatile uint8_t message_complete = 0;
 
 int main(void)
 {
@@ -56,8 +58,8 @@ int main(void)
 
   // Select alternate function for PB13
   // AF5 corresponds to I2C2_SCL
-  GPIOB->AFR[1] &= ~(0xF << 20);   // clear previous setting
-  GPIOB->AFR[1] |=  (0x5 << 20);   // set AF5 (I2C2 SCL)
+  GPIOB->AFR[1] &= ~(0xF << 20); // clear previous setting
+  GPIOB->AFR[1] |=  (0x5 << 20); // set AF5 (I2C2 SCL)
 
   // Disable I2C before setup
   I2C2->CR1 &= ~I2C_CR1_PE;
@@ -67,29 +69,53 @@ int main(void)
 
   // Set slave address = 0x10
   I2C2->OAR1 = (0x10 << 1) | I2C_OAR1_OA1EN;
+  //I2C2->OAR1 = (0x12 << 1) | I2C_OAR1_OA1EN;
+
+  I2C2->CR1 |= (I2C_CR1_ADDRIE | I2C_CR1_RXIE | I2C_CR1_STOPIE | I2C_CR1_NACKIE | I2C_CR1_ERRIE);
 
   // Enable I2C
   I2C2->CR1 |= I2C_CR1_PE;
 
+  // I2C2 Interrupt in NVIC
+  NVIC_EnableIRQ(I2C2_IRQn);
+  NVIC_SetPriority(I2C2_IRQn, 0);
+
   while (1)
   {
-    rx_data = I2C2_Receive();
+    if (message_complete)
+    {
+      message_complete = 0;
+    }
   }
   return -1;
 }
 
-static void I2C2_Receive(I2C_TypeDef* I2C, uint8_t nbytes, char data[]) 
-{
-  while(!(I2C2->ISR & I2C_ISR_ADDR)); // Wait till Master sends matching addr
-  I2C2->ICR |= I2C_ICR_ADDRCF; // Write to Interrupt Clear Register
+void I2C2_IRQHandler(void) {
+    
+    // Master addresses (Transaction begin)
+    if (I2C2->ISR & I2C_ISR_ADDR) {
+        I2C2->ICR |= I2C_ICR_ADDRCF; // Clear the ADDR flag
+        rx_index = 0; // Reset array index to 0
+        message_complete = 0; // Reset complete flag
+    }
 
-  for(int i = 0; i < nbytes; i++) {
-    while(!(I2C2->ISR & I2C_ISR_RXNE));
-    data[i] = I2C->RXDR & I2C_RXDR_RXDATA;
-  }
+    // A new byte of data arrived
+    if (I2C2->ISR & I2C_ISR_RXNE) {
+        if (rx_index < MAX_RX_BYTES) {
+            // Read data into array
+            rx_buffer[rx_index] = I2C2->RXDR; 
+            rx_index++;
+        } else {
+            // Read the register => clears the RXNE flag
+            (void)I2C2->RXDR; 
+        }
+    }
 
-  while(!(I2C2->ISR & I2C_ISR_STOPF));
-  I2C2->ICR |= I2C_ICR_STOPCF;
+    // Master generated a STOP condition (Transaction ends)
+    if (I2C2->ISR & I2C_ISR_STOPF) {
+        I2C2->ICR |= I2C_ICR_STOPCF; // Clear STOP flag
+        message_complete = 1; // Tell full message is ready
+    }
 }
 
 /**
