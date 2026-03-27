@@ -21,10 +21,10 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-  
+
   // Below is adapted from Lab 5 for slave setup
 
-  // Enable clock for GPIO port B 
+  // Enable clock for GPIO port B
   RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
   // Enable clock for I2C2 peripheral
   RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
