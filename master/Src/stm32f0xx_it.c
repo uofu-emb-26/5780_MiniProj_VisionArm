@@ -6,15 +6,12 @@
 #include "stm32f0xx_hal_i2c.h"
 
 // ***** External Declarations *****
-uint8_t I2C_read = true;    // Set to true for a read transaction
-uint8_t I2C_address = 0;
-char* I2C_message;
-uint8_t I2C_nbytes = 0;
-uint8_t I2C_chain = false;    // Set to true to chain another transaction after the current one
+I2C_Transaction* I2C_nextTransaction = NULL;
 uint8_t I2C_error = 0;
 
 
 // ***** Internal Declarations *****
+static I2C_Transaction currentTransaction = {0, 0, 0, 0, NULL};
 static uint8_t nbytes_left = 0;
 
 
@@ -31,6 +28,7 @@ static uint8_t nbytes_left = 0;
   * @retval None
   */
 static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn);
+static void I2C_GetNextTransaction(I2C_TypeDef* I2C);
 
 static void I2C_HandleTXIS(I2C_TypeDef* I2C);
 static void I2C_HandleRXNE(I2C_TypeDef* I2C);
@@ -92,6 +90,9 @@ void SysTick_Handler(void)
 
 void I2C2_IRQHandler(void)
 {
+  if (currentTransaction == (I2C_Transaction){0, 0, 0, 0, NULL})
+    I2C_GetNextTransaction(I2C2);
+
   if (I2C2->ISR & I2C_ISR_TXIS) {
     I2C_HandleTXIS(I2C2);
   }
@@ -104,20 +105,6 @@ void I2C2_IRQHandler(void)
   else if (I2C2->ISR & I2C_ISR_TC) {
     I2C_HandleTC(I2C2);
   }
-  else {
-    // Set transmission parameters in CR2 register
-    I2C_Setup(I2C2, I2C_address, I2C_nbytes, I2C_read);
-
-    if (I2C_nbytes > I2C_MAX_MESSAGE_LEN) {
-      I2C_error = NBYTES_INVALID;
-      return;
-    }
-
-    nbytes_left = I2C_nbytes;
-
-    // Start the transmission
-    I2C2->CR2 |= I2C_CR2_START;
-  }
 }
 
 
@@ -126,7 +113,7 @@ void I2C2_IRQHandler(void)
 static void I2C_HandleTXIS(I2C_TypeDef* I2C)
 {
   nbytes_left--;
-  I2C->TXDR = I2C_message[nbytes_left] & 0xFF;
+  I2C->TXDR = currentTransaction.message[nbytes_left] & 0xFF;
 }
 
 // FIXME: Implement
@@ -144,14 +131,26 @@ static void I2C_HandleNACK(I2C_TypeDef* I2C)
 static void I2C_HandleTC(I2C_TypeDef* I2C)
 {
   // FIXME: This function has no way to indicate which transaction in the chain it is handling
-  if (I2C_chain) {
-    I2C_Setup(I2C, I2C_address, I2C_nbytes, I2C_read);
-
-    I2C->CR2 |= I2C_CR2_START;
-  }
-  else {
+  if (!(currentTransaction.chain))
     I2C->CR2 |= I2C_CR2_STOP;
+
+  if (I2C_nextTransaction == NULL) {
+    if ((currentTransaction.chain))
+      I2C_error = NULL_NEXT_TRANSACTION;
+
+    return;
   }
+
+  I2C_GetNextTransaction(I2C);
+
+  I2C_Setup(
+    I2C,
+    currentTransaction.address,
+    currentTransaction.nbytes,
+    currentTransaction.read
+  );
+
+  I2C->CR2 |= I2C_CR2_START;
 }
 
 static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn)
@@ -161,4 +160,22 @@ static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, 
   // Set RD_WRN based on the type of transaction
   I2C->CR2 &= ~(I2C_CR2_NBYTES | I2C_CR2_SADD | I2C_CR2_RD_WRN);
   I2C->CR2 |= (nbytes << I2C_CR2_NBYTES_Pos) | (device_address << (I2C_CR2_SADD_Pos + 1) | (rd_wrn << I2C_CR2_RD_WRN_Pos));
+
+  nbytes_left = nbytes;
+}
+
+static void I2C_GetNextTransaction(I2C_TypeDef* I2C)
+{
+  if (I2C == I2C2) {
+    // Copy I2C_nextTransaction struct and reset it
+    currentTransaction = (I2C_Transaction){
+      I2C_nextTransaction->nbytes,
+      I2C_nextTransaction->address,
+      I2C_nextTransaction->read,
+      I2C_nextTransaction->chain,
+      I2C_nextTransaction->message
+    };
+
+    I2C_nextTransaction = NULL;
+  }
 }
