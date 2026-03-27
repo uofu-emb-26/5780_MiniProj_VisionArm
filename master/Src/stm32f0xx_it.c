@@ -17,17 +17,6 @@ static uint8_t nbytes_left = 0;
 
 // ***** Helper Function Prototypes *****
 
-/**
-  * @brief A helper function for setting the CR2 registers of an I2C peripheral
-  *        for writing.
-  * This function does not set the START bit.
-  *
-  * See the `My_HAL_I2C_Write` function for additional parameter details.
-  * @param rd_wrn: A boolean that is true if the transaction is a read;
-  *                otherwise, false.
-  * @retval None
-  */
-static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn);
 static void I2C_GetNextTransaction(I2C_TypeDef* I2C);
 
 static void I2C_HandleTXIS(I2C_TypeDef* I2C);
@@ -90,7 +79,7 @@ void SysTick_Handler(void)
 
 void I2C2_IRQHandler(void)
 {
-  if (currentTransaction == (I2C_Transaction){0, 0, 0, 0, NULL})
+  if (!(I2C2->ISR & I2C_ISR_BUSY))
     I2C_GetNextTransaction(I2C2);
 
   if (I2C2->ISR & I2C_ISR_TXIS) {
@@ -109,6 +98,20 @@ void I2C2_IRQHandler(void)
 
 
 // ***** Helper Functions *****
+
+void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction)
+{
+  // Set the address of the slave device (7-bit address is the bits SADD[7:1])
+  // Set the number of bytes to write or read
+  // Set RD_WRN based on the type of transaction
+  I2C->CR2 &= ~(I2C_CR2_NBYTES | I2C_CR2_SADD | I2C_CR2_RD_WRN);
+  I2C->CR2 |= (transaction->nbytes << I2C_CR2_NBYTES_Pos)
+            | (transaction->address << (I2C_CR2_SADD_Pos + 1)
+            | (transaction->read << I2C_CR2_RD_WRN_Pos));
+
+  if (!(I2C->ISR & I2C_ISR_BUSY))
+    nbytes_left = transaction->nbytes;
+}
 
 static void I2C_HandleTXIS(I2C_TypeDef* I2C)
 {
@@ -143,25 +146,9 @@ static void I2C_HandleTC(I2C_TypeDef* I2C)
 
   I2C_GetNextTransaction(I2C);
 
-  I2C_Setup(
-    I2C,
-    currentTransaction.address,
-    currentTransaction.nbytes,
-    currentTransaction.read
-  );
+  I2C_Setup(I2C, I2C_nextTransaction);
 
   I2C->CR2 |= I2C_CR2_START;
-}
-
-static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn)
-{
-  // Set the address of the slave device (7-bit address is the bits SADD[7:1])
-  // Set the number of bytes to write or read
-  // Set RD_WRN based on the type of transaction
-  I2C->CR2 &= ~(I2C_CR2_NBYTES | I2C_CR2_SADD | I2C_CR2_RD_WRN);
-  I2C->CR2 |= (nbytes << I2C_CR2_NBYTES_Pos) | (device_address << (I2C_CR2_SADD_Pos + 1) | (rd_wrn << I2C_CR2_RD_WRN_Pos));
-
-  nbytes_left = nbytes;
 }
 
 static void I2C_GetNextTransaction(I2C_TypeDef* I2C)

@@ -44,6 +44,20 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 void I2C2_IRQHandler(void);
 
+// ***** Helper Function Prototypes *****
+
+/**
+* @brief A helper function for setting the CR2 registers of an I2C peripheral
+*        for writing.
+* This function does not set the START bit.
+*
+* See the `My_HAL_I2C_Write` function for additional parameter details.
+* @param rd_wrn: A boolean that is true if the transaction is a read;
+*                otherwise, false.
+* @retval None
+*/
+void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction);
+
 
 #ifdef __cplusplus
 }
