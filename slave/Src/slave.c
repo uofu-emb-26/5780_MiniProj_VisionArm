@@ -1,12 +1,14 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
+#include "stm32f0xx.h"
 
 void SystemClock_Config(void);
 
-/**
+  /**
   * @brief  The application entry point.
   * @retval int
   */
+
 int main(void)
 {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -16,9 +18,25 @@ int main(void)
 
   while (1)
   {
- 
+
   }
   return -1;
+}
+
+uint8_t I2C2_Receive(void) {
+  uint8_t data = 0; // Hold message to receive
+
+  // Blocking & Polling
+  while(!(I2C2->ISR & I2C_ISR_ADDR)); // Wait till Master sends matching addr
+  I2C2->ICR |= I2C_ICR_ADDRCF; // Write to Interrupt Clear Register
+
+  while(!(I2C2->ISR & I2C_ISR_RXNE));
+  data = I2C2->RXDR;
+
+  while(!(I2C2->ISR & I2C_ISR_STOPF));
+  I2C2->ICR |= I2C_ICR_STOPCF;
+
+  return data;
 }
 
 /**
