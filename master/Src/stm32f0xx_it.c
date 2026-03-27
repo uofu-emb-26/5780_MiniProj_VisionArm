@@ -32,10 +32,10 @@ static uint8_t nbytes_left = 0;
   */
 static void I2C_Setup(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, uint8_t rd_wrn);
 
-static void I2C_HandleTXIS(void);
-static void I2C_HandleRXNE(void);
-static void I2C_HandleNACK(void);
-static void I2C_HandleTC(void);
+static void I2C_HandleTXIS(I2C_TypeDef* I2C);
+static void I2C_HandleRXNE(I2C_TypeDef* I2C);
+static void I2C_HandleNACK(I2C_TypeDef* I2C);
+static void I2C_HandleTC(I2C_TypeDef* I2C);
 
 /******************************************************************************/
 /*           Cortex-M0 Processor Interruption and Exception Handlers          */
@@ -93,16 +93,16 @@ void SysTick_Handler(void)
 void I2C2_IRQHandler(void)
 {
   if (I2C2->ISR & I2C_ISR_TXIS) {
-    I2C_HandleTXIS();
+    I2C_HandleTXIS(I2C2);
   }
   else if (I2C2->ISR & I2C_ISR_RXNE) {
-    I2C_HandleRXNE();
+    I2C_HandleRXNE(I2C2);
   }
   else if (I2C2->ISR & I2C_ISR_NACKF) {
-    I2C_HandleNACK();
+    I2C_HandleNACK(I2C2);
   }
   else if (I2C2->ISR & I2C_ISR_TC) {
-    I2C_HandleTC();
+    I2C_HandleTC(I2C2);
   }
   else {
     // Set transmission parameters in CR2 register
@@ -123,31 +123,31 @@ void I2C2_IRQHandler(void)
 
 // ***** Helper Functions *****
 
-static void I2C_HandleTXIS(void)
+static void I2C_HandleTXIS(I2C_TypeDef* I2C)
 {
   nbytes_left--;
   I2C->TXDR = I2C_message[nbytes_left] & 0xFF;
 }
 
 // FIXME: Implement
-static void I2C_HandleRXNE(void)
+static void I2C_HandleRXNE(I2C_TypeDef* I2C)
 {
   // FIXME: Implement
 }
 
 // FIXME: Implement
-static void I2C_HandleNACK(void)
+static void I2C_HandleNACK(I2C_TypeDef* I2C)
 {
   // FIXME: Implement
 }
 
-static void I2C_HandleTC(void)
+static void I2C_HandleTC(I2C_TypeDef* I2C)
 {
   // FIXME: This function has no way to indicate which transaction in the chain it is handling
   if (I2C_chain) {
-    I2C_Setup(I2C2, I2C_address, I2C_nbytes, I2C_read);
+    I2C_Setup(I2C, I2C_address, I2C_nbytes, I2C_read);
 
-    I2C2->CR2 |= I2C_CR2_START;
+    I2C->CR2 |= I2C_CR2_START;
   }
   else {
     I2C->CR2 |= I2C_CR2_STOP;
