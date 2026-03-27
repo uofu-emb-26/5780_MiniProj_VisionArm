@@ -90,6 +90,7 @@ void I2C2_IRQHandler(void)
   }
   else if (I2C2->ISR & I2C_ISR_NACKF) {
     I2C_HandleNACK(I2C2);
+    I2C2->ICR |= I2C_ICR_NACKCF;
   }
   else if (I2C2->ISR & I2C_ISR_TC) {
     I2C_HandleTC(I2C2);
