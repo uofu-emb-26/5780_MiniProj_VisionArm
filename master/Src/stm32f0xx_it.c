@@ -113,6 +113,11 @@ void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction)
     nbytes_left = transaction->nbytes;
 }
 
+void I2C_SetNextTransaction(I2C_TypeDef* I2C, I2C_Transaction* transaction)
+{
+  I2C_nextTransaction = transaction;
+}
+
 static void I2C_HandleTXIS(I2C_TypeDef* I2C)
 {
   nbytes_left--;
