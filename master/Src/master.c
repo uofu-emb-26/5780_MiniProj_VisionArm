@@ -1,5 +1,11 @@
+#include <string.h>
 #include "main.h"
+#include "stm32f072xb.h"
 #include "stm32f0xx_hal.h"
+#include "stm32f0xx_hal_rcc_ex.h"
+#include "stm32f0xx_it.h"
+#include "i2c_config.h"
+#include "hal_gpio.h"
 
 void SystemClock_Config(void);
 
@@ -14,9 +20,21 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  i2c_init();
+
+  NVIC_EnableIRQ(I2C2_IRQn);
+  NVIC_SetPriority(I2C2_IRQn, 0);
+
+  uint8_t device_address = 0;   // FIXME: Change to STM32 slave device address
+  char* data = "Hello from master device";
+
   while (1)
   {
- 
+    while (I2C2->ISR & I2C_ISR_BUSY) {
+      // Spin loop
+    }
+
+    I2C_Write(I2C2, device_address, strlen(data) + 1, data);
   }
   return -1;
 }
