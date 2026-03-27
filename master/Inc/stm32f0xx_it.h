@@ -57,6 +57,7 @@ void I2C2_IRQHandler(void);
 * @retval None
 */
 void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction);
+void I2C_SetNextTransaction(I2C_TypeDef* I2C, I2C_Transaction* transaction);
 
 
 #ifdef __cplusplus
