@@ -20,7 +20,7 @@ typedef enum {
 
 extern uint8_t I2C_read;
 extern uint8_t I2C_address;
-extern char I2C_message[100];
+extern char* I2C_message;
 extern uint8_t I2C_nbytes;
 extern uint8_t I2C_chain;
 extern uint8_t I2C_error;
