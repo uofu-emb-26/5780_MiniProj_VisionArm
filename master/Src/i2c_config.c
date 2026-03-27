@@ -9,7 +9,7 @@ void i2c_init(void){
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
-    
+
     //Configure PB11 and PB13 to I2C SDA and SCL
     GPIOB->MODER &= ~((3 << 22) | (3 << 26));
     GPIOB->MODER |= ((1 << 23) | (1 << 27));
@@ -40,11 +40,12 @@ void i2c_init(void){
     I2C2->CR1 |= I2C_CR1_NACKIE;
     I2C2->CR1 |= I2C_CR1_TXIE;
     I2C2->CR1 |= I2C_CR1_RXIE;
+    I2C2->CR1 |= I2C_CR1_TCIE;
 
 
 
     //TODO: Update with Macros
-    I2C2->TIMINGR =    
+    I2C2->TIMINGR =
     (1  << 28) |
     (0x4 << 20) |
     (0x2 << 16) |
@@ -68,7 +69,7 @@ void i2c_transaction_init(uint8_t slave_addr, uint8_t nbytes, uint8_t rw){
     if(rw){
         I2C2->CR2 |= (I2C_CR2_RD_WRN);
     }
-    
+
     I2C2->CR2 |= (I2C_CR2_START);
 
 
