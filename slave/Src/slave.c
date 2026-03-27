@@ -9,6 +9,7 @@ void SystemClock_Config(void);
   * @retval int
   */
 
+MAX_RX_BYTES = 100;
 volatile uint8_t rx_buffer[MAX_RX_BYTES]; // Array to hold incoming data
 volatile uint8_t rx_index = 0; // Keeps track of which byte we are on
 volatile uint8_t message_complete = 0;
@@ -67,7 +68,7 @@ int main(void)
   // Timing from Lab 5
   I2C2->TIMINGR = 0x10420F13;
 
-  // Set slave address = 0x10
+  // Set slave1 address = 0x10
   I2C2->OAR1 = (0x10 << 1) | I2C_OAR1_OA1EN;
   //I2C2->OAR1 = (0x12 << 1) | I2C_OAR1_OA1EN;
 
@@ -94,27 +95,33 @@ void I2C2_IRQHandler(void) {
     
     // Master addresses (Transaction begin)
     if (I2C2->ISR & I2C_ISR_ADDR) {
-        I2C2->ICR |= I2C_ICR_ADDRCF; // Clear the ADDR flag
         rx_index = 0; // Reset array index to 0
         message_complete = 0; // Reset complete flag
+        I2C2->ICR = I2C_ICR_ADDRCF;
     }
 
     // A new byte of data arrived
     if (I2C2->ISR & I2C_ISR_RXNE) {
-        if (rx_index < MAX_RX_BYTES) {
-            // Read data into array
-            rx_buffer[rx_index] = I2C2->RXDR; 
-            rx_index++;
-        } else {
-            // Read the register => clears the RXNE flag
-            (void)I2C2->RXDR; 
-        }
+      uint8_t b = (uint8_t)I2C2->RXDR;
+      if (rx_index < MAX_RX_BYTES) {
+        rx_buffer[rx_index++] = b;
+      }
     }
-
-    // Master generated a STOP condition (Transaction ends)
+    if (I2C2->ISR & I2C_ISR_NACKF) {
+        I2C2->ICR = I2C_ICR_NACKCF;
+    }
     if (I2C2->ISR & I2C_ISR_STOPF) {
-        I2C2->ICR |= I2C_ICR_STOPCF; // Clear STOP flag
-        message_complete = 1; // Tell full message is ready
+        I2C2->ICR = I2C_ICR_STOPCF;
+        message_complete = 1;
+    }
+    if (I2C2->ISR & I2C_ISR_BERR) {
+        I2C2->ICR = I2C_ICR_BERRCF;
+    }
+    if (I2C2->ISR & I2C_ISR_ARLO) {
+        I2C2->ICR = I2C_ICR_ARLOCF;
+    }
+    if (I2C2->ISR & I2C_ISR_OVR) {
+        I2C2->ICR = I2C_ICR_OVRCF;
     }
 }
 
