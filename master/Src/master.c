@@ -9,6 +9,8 @@
 #include "i2c_config.h"
 #include "hal_gpio.h"
 
+void SetupGPIO_USART(void);
+void SetupUSART3(void);
 void SetupLEDs(void);
 void SystemClock_Config(void);
 
@@ -26,6 +28,9 @@ int main(void)
   SetupLEDs();
   i2c_init();
 
+  SetupGPIO_USART();
+  SetupUSART3();
+
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
 
@@ -35,19 +40,77 @@ int main(void)
 
   while (1)
   {
+    My_HAL_USART_WriteString(USART3, "main: Start of main loop\n");
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
 
+    My_HAL_USART_WriteString(USART3, "main: Sending I2C write command\n");
     I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
+    My_HAL_USART_WriteString(USART3, "main: Waiting for TC flag\n");
     while (!(I2C2->ISR & I2C_ISR_TC)) {
       // Spin loop
     }
+
+    My_HAL_USART_WriteString(USART3, "main: Received TC flag");
 
     I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
     HAL_Delay(500); // Give time for slave's interrupt handler
   }
   return -1;
+}
+
+/**
+  * @brief Initializes the GPIO pins for USART
+  * @retval None
+  */
+void SetupGPIO_USART(void)
+{
+  // Initialize USART_TX on pin PC4
+  GPIO_InitTypeDef initTxStr = {
+    GPIO_PIN_4,
+    GPIO_MODE_AF_PP,
+    GPIO_NOPULL,
+    GPIO_SPEED_FREQ_LOW,
+    GPIO_AF1_USART3
+  };
+
+  HAL_GPIO_Init(GPIOC, &initTxStr);
+
+  // Initialize USART_RX on pin PC5
+  GPIO_InitTypeDef initRxStr = {
+    GPIO_PIN_5,
+    GPIO_MODE_AF_OD,
+    GPIO_NOPULL,
+    GPIO_SPEED_FREQ_LOW,
+    GPIO_AF1_USART3
+  };
+
+  HAL_GPIO_Init(GPIOC, &initRxStr);
+}
+
+/**
+  * @brief Initializes the USART3 peripheral
+  * @retval None
+  */
+void SetupUSART3(void)
+{
+  __HAL_RCC_USART3_CLK_ENABLE();
+
+  // Set baud rate
+  uint32_t baud_rate = 115200;
+
+  My_HAL_USART_SetBaudRate(USART3, baud_rate);
+
+  // Enable TX and RX hardware
+  USART3->CR1 |= USART_CR1_TE;
+  USART3->CR1 |= USART_CR1_RE;
+
+  // Enable interrupt when data is received
+  // USART3->CR1 |= USART_CR1_RXNEIE;
+
+  // Enable the USART peripheral
+  USART3->CR1 |= USART_CR1_UE;
 }
 
 void SetupLEDs(void)
