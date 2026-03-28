@@ -57,6 +57,10 @@ int main(void)
   // Set PB13 to open-drain
   GPIOB->OTYPER |= (1 << 13);
 
+  // Enable pull-up resistors for SDA & SCL (01)
+  GPIOB->PUPDR &= ~((3 << (11 * 2)) | (3 << (13 *2)));
+  GPIOB->PUPDR |= ((1 << (11 * 2)) | (1 << (13 *2)));
+
   // Select alternate function for PB13
   // AF5 corresponds to I2C2_SCL
   GPIOB->AFR[1] &= ~(0xF << 20); // clear previous setting
