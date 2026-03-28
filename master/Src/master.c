@@ -25,7 +25,7 @@ int main(void)
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
 
-  uint8_t device_address = 0;   // FIXME: Change to STM32 slave device address
+  uint8_t device_address = (0x10 << 1);   // STM32 slave device address
   char* data = "Hello from master device";
 
   while (1)
@@ -35,6 +35,8 @@ int main(void)
     }
 
     I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+
+    HAL_Delay(500); // Give time for slave's interrupt handler
   }
   return -1;
 }

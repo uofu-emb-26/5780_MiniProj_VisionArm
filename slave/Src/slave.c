@@ -68,7 +68,7 @@ int main(void)
   // Timing from Lab 5
   I2C2->TIMINGR = 0x10420F13;
 
-  // Set slave1 address = 0x10
+  // Set slave1 address = 0x10 for now
   I2C2->OAR1 = (0x10 << 1) | I2C_OAR1_OA1EN;
   //I2C2->OAR1 = (0x12 << 1) | I2C_OAR1_OA1EN;
 
@@ -91,29 +91,30 @@ int main(void)
   return -1;
 }
 
-void I2C2_IRQHandler(void) {
-    
+void I2C2_IRQHandler(void) {  
     // Master addresses (Transaction begin)
     if (I2C2->ISR & I2C_ISR_ADDR) {
         rx_index = 0; // Reset array index to 0
         message_complete = 0; // Reset complete flag
-        I2C2->ICR |= I2C_ICR_ADDRCF;
+        I2C2->ICR |= I2C_ICR_ADDRCF; // Clears ADDR flag
     }
 
     // A new byte of data arrived
     if (I2C2->ISR & I2C_ISR_RXNE) {
       uint8_t b = (uint8_t)I2C2->RXDR;
       if (rx_index < MAX_RX_BYTES) {
-        rx_buffer[rx_index++] = b;
+        rx_buffer[rx_index++] = b; // Pull byte out of RXDR
       }
     }
     if (I2C2->ISR & I2C_ISR_NACKF) {
-        I2C2->ICR |= I2C_ICR_NACKCF;
+        I2C2->ICR |= I2C_ICR_NACKCF; // NACK occurs: Receiver didn't respond => master terminates read request
     }
+    // Generated STOP condition: transaction ends
     if (I2C2->ISR & I2C_ISR_STOPF) {
-        I2C2->ICR |= I2C_ICR_STOPCF;
-        message_complete = 1;
+        I2C2->ICR |= I2C_ICR_STOPCF; // Clears STOP flag
+        message_complete = 1; 
     }
+    // Error Handlers
     if (I2C2->ISR & I2C_ISR_BERR) {
         I2C2->ICR |= I2C_ICR_BERRCF;
     }
