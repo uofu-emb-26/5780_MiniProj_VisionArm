@@ -9,7 +9,7 @@ void SystemClock_Config(void);
   * @retval int
   */
 
-MAX_RX_BYTES = 100;
+#define MAX_RX_BYTES 100
 volatile uint8_t rx_buffer[MAX_RX_BYTES]; // Array to hold incoming data
 volatile uint8_t rx_index = 0; // Keeps track of which byte we are on
 volatile uint8_t message_complete = 0;
@@ -97,7 +97,7 @@ void I2C2_IRQHandler(void) {
     if (I2C2->ISR & I2C_ISR_ADDR) {
         rx_index = 0; // Reset array index to 0
         message_complete = 0; // Reset complete flag
-        I2C2->ICR = I2C_ICR_ADDRCF;
+        I2C2->ICR |= I2C_ICR_ADDRCF;
     }
 
     // A new byte of data arrived
@@ -108,20 +108,20 @@ void I2C2_IRQHandler(void) {
       }
     }
     if (I2C2->ISR & I2C_ISR_NACKF) {
-        I2C2->ICR = I2C_ICR_NACKCF;
+        I2C2->ICR |= I2C_ICR_NACKCF;
     }
     if (I2C2->ISR & I2C_ISR_STOPF) {
-        I2C2->ICR = I2C_ICR_STOPCF;
+        I2C2->ICR |= I2C_ICR_STOPCF;
         message_complete = 1;
     }
     if (I2C2->ISR & I2C_ISR_BERR) {
-        I2C2->ICR = I2C_ICR_BERRCF;
+        I2C2->ICR |= I2C_ICR_BERRCF;
     }
     if (I2C2->ISR & I2C_ISR_ARLO) {
-        I2C2->ICR = I2C_ICR_ARLOCF;
+        I2C2->ICR |= I2C_ICR_ARLOCF;
     }
     if (I2C2->ISR & I2C_ISR_OVR) {
-        I2C2->ICR = I2C_ICR_OVRCF;
+        I2C2->ICR |= I2C_ICR_OVRCF;
     }
 }
 
