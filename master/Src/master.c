@@ -25,7 +25,8 @@ int main(void)
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
 
-  uint8_t device_address = (0x10 << 1);   // STM32 slave device address
+  //i2c_setup function shifts adress already
+  uint8_t device_address = (0x10);   // STM32 slave device address
   char* data = "Hello from master device";
 
   while (1)
