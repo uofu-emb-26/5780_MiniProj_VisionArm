@@ -1,6 +1,17 @@
+#include <string.h>
 #include "main.h"
+#include "stm32f072xb.h"
 #include "stm32f0xx_hal.h"
+#include "stm32f0xx_hal_gpio.h"
+#include "stm32f0xx_hal_rcc.h"
+#include "stm32f0xx_hal_rcc_ex.h"
+#include "stm32f0xx_it.h"
+#include "i2c_config.h"
+#include "hal_gpio.h"
 
+void SetupGPIO_USART(void);
+void SetupUSART3(void);
+void SetupLEDs(void);
 void SystemClock_Config(void);
 
 /**
@@ -14,11 +25,106 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  SetupLEDs();
+
+  SetupGPIO_USART();
+  SetupUSART3();
+  i2c_init();
+
+  NVIC_EnableIRQ(I2C2_IRQn);
+  NVIC_SetPriority(I2C2_IRQn, 0);
+
+  //i2c_setup function shifts adress already
+  uint8_t device_address = (0x10);   // STM32 slave device address
+  uint8_t device_address2 = 0x12;
+  char* data = "Hello from master device";
+
   while (1)
   {
- 
+    My_HAL_USART_WriteString(USART3, "main: Start of main loop\n");
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
+
+    // 1. Send to Slave 1
+    My_HAL_USART_WriteString(USART3, "main: Sending to Slave 1 (0x10)\n");
+    I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+    
+    // Give Slave 1 a tiny bit of breathing room (optional but good practice)
+    HAL_Delay(10); 
+
+    // 2. Send to Slave 2
+    My_HAL_USART_WriteString(USART3, "main: Sending to Slave 2 (0x12)\n");
+    I2C_Write(I2C2, device_address2, strlen(data) + 1, data);
+
+    // 3. Wait before next big cycle
+    My_HAL_USART_WriteString(USART3, "main: Cycle complete\n");
+    HAL_Delay(500); 
   }
-  return -1;
+
+/**
+  * @brief Initializes the GPIO pins for USART
+  * @retval None
+  */
+void SetupGPIO_USART(void)
+{
+  // Initialize USART_TX on pin PC4
+  GPIO_InitTypeDef initTxStr = {
+    GPIO_PIN_4,
+    GPIO_MODE_AF_PP,
+    GPIO_NOPULL,
+    GPIO_SPEED_FREQ_LOW,
+    GPIO_AF1_USART3
+  };
+
+  HAL_GPIO_Init(GPIOC, &initTxStr);
+
+  // Initialize USART_RX on pin PC5
+  GPIO_InitTypeDef initRxStr = {
+    GPIO_PIN_5,
+    GPIO_MODE_AF_PP,
+    GPIO_PULLUP,
+    GPIO_SPEED_FREQ_LOW,
+    GPIO_AF1_USART3
+  };
+
+  HAL_GPIO_Init(GPIOC, &initRxStr);
+}
+
+/**
+  * @brief Initializes the USART3 peripheral
+  * @retval None
+  */
+void SetupUSART3(void)
+{
+  __HAL_RCC_USART3_CLK_ENABLE();
+
+  // Set baud rate
+  uint32_t baud_rate = 115200;
+
+  My_HAL_USART_SetBaudRate(USART3, baud_rate);
+
+  // Enable TX and RX hardware
+  USART3->CR1 |= USART_CR1_TE;
+  USART3->CR1 |= USART_CR1_RE;
+
+  // Enable interrupt when data is received
+  // USART3->CR1 |= USART_CR1_RXNEIE;
+
+  // Enable the USART peripheral
+  USART3->CR1 |= USART_CR1_UE;
+}
+
+void SetupLEDs(void)
+{
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  GPIO_InitTypeDef initLEDStr = {
+    GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9,
+    GPIO_MODE_OUTPUT_PP,
+    GPIO_NOPULL,
+    GPIO_SPEED_FREQ_LOW
+  };
+
+  HAL_GPIO_Init(GPIOC, &initLEDStr);
 }
 
 /**
