@@ -121,8 +121,8 @@ void encoder_init(void) {
 
     TIM3->CCMR1 |= (TIM_CCMR1_CC1S_0 | TIM_CCMR1_CC2S_0);   // TI1FP1 and TI2FP2 signals connected to CH1 and CH2
     TIM3->SMCR |= (TIM_SMCR_SMS_1 | TIM_SMCR_SMS_0);        // Capture encoder on both rising and falling edges
-    TIM3->ARR = 0xFFFF;                                     // Set ARR to top of timer (longest possible period)
-    TIM3->CNT = 0x7FFF;                                     // Bias at midpoint to allow for negative rotation
+    TIM3->ARR = 0xFFFF;
+    TIM3->CNT = 0;
     // (Could also cast unsigned register to signed number to get negative numbers if it rotates backwards past zero
     //  just another option, the mid-bias is a bit simpler to understand though.)
     TIM3->CR1 |= TIM_CR1_CEN;                               // Enable timer
@@ -142,18 +142,13 @@ void encoder_init(void) {
     NVIC_SetPriority(TIM6_DAC_IRQn,2);
 }
 
-// Encoder interrupt to calculate motor speed, also manages PI controller
+// Encoder interrupt to calculate motor position, also manages PI controller
 void TIM6_DAC_IRQHandler(void) {
-    /* Calculate the motor speed in raw encoder counts
-     * Note the motor speed is signed! Motor can be run in reverse.
-     * Speed is measured by how far the counter moved from center point
-     */
-    motor_speed = (TIM3->CNT - 0x7FFF);
-    TIM3->CNT = 0x7FFF; // Reset back to center point
+    motor_position = (int16_t)TIM3->CNT;
 
-    // Call the PI update function
     PI_update();
     log_data();
+
     TIM6->SR &= ~TIM_SR_UIF;        // Acknowledge the interrupt
 }
 
@@ -178,6 +173,23 @@ void ADC_init(void) {
     ADC1->CR |= ADC_CR_ADSTART;             // Signal conversion start
 }
 
+
+
+/*
+Set motor direction for position
+*/
+void motor_setDirection(int8_t dir) {
+    if(dir >= 0) {
+        // Forward
+        GPIOA->ODR |= (1 << 5);
+        GPIOA->ODR &= ~(1 << 6);
+    } else {
+        // Back
+        GPIOA->ODR &= ~(1 << 5);
+        GPIOA->ODR |= (1 << 6);
+    }
+}  
+
 /* Run PI control loop
  *
  * Make sure to use the indicated variable names. This allows STMStudio to monitor
@@ -198,72 +210,45 @@ void PI_update(void) {
     // __disable_irq();
     //calculate error signal and write to "error" variable
 
-    error = target_rpm - motor_speed;
-    /* Hint: Remember that your calculated motor speed may not be directly in RPM!
-     *       You will need to convert the target or encoder speeds to the same units.
-     *       I recommend converting to whatever units result in larger values, gives
-     *       more resolution.
-     */
+      int16_t output;
 
+    // Position error
+    error = target_position - motor_position;
 
-    //Calculate integral portion of PI controller, write to "error_integral" variable
-    error_integral += error;
-
-    //Clamp the value of the integral to a limited positive range
-
-    if(error_integral < 0){
+    // Stop when close enough
+    if(error > -5 && error < 5) {
+        pwm_setDutyCycle(0);
+        duty_cycle = 0;
         error_integral = 0;
+        return;
     }
-    if(error_integral > 3200){
-        error_integral = 3200;
+
+    // Set motor direction based on sign of error
+    if(error > 0) {
+        motor_setDirection(1);
+        output = error;
+    } else {
+        motor_setDirection(-1);
+        output = -error;
     }
-    
-    /* Hint: The value clamp is needed to prevent excessive "windup" in the integral.
-     *       You'll read more about this for the post-lab. The exact value is arbitrary
-     *       but affects the PI tuning.
-     *       Recommend that you clamp between 0 and 3200 (what is used in the lab solution)
-     */
 
-    //Calculate proportional portion, add integral and write to "output" variable
-    
-    int16_t output = (Kp * error) + (Ki * error_integral); // Change this!
+    // Proportional control only
+    output = Kp * output;
 
-    /* Because the calculated values for the PI controller are significantly larger than
-     * the allowable range for duty cycle, you'll need to divide the result down into
-     * an appropriate range. (Maximum integral clamp / X = 100% duty cycle)
-     *
-     * Hint: If you chose 3200 for the integral clamp you should divide by 32 (right shift by 5 bits),
-     *       this will give you an output of 100 at maximum integral "windup".
-     *
-     * This division also turns the above calculations into pseudo fixed-point. This is because
-     * the lowest 5 bits act as if they were below the decimal point until the division where they
-     * were truncated off to result in an integer value.
-     *
-     * Technically most of this is arbitrary, in a real system you would want to use a fixed-point
-     * math library. The main difference that these values make is the difference in the gain values
-     * required for tuning.
-     */
+    // Scale down
+    output = output >> 5;
 
-     //Divide the output into the proper range for output adjustment
-     output = output >> 5;
-
-
-     //Clamp the output value between 0 and 100
-
-     if(output < 0){
-        output = 0;
-     }
-     if(output > 100){
+    // Clamp to valid PWM range
+    if(output > 100) {
         output = 100;
-     }
+    }
 
     pwm_setDutyCycle(output);
-    duty_cycle = output;            // For debug viewing
+    duty_cycle = output;
 
-    // Read the ADC value for current monitoring, actual conversion into meaningful units
-    // will be performed by STMStudio
-    if(ADC1->ISR & ADC_ISR_EOC) {   // If the ADC has new data for us
-        adc_value = ADC1->DR;       // Read the motor current for debug viewing
+    // ADC debug read
+    if(ADC1->ISR & ADC_ISR_EOC) {
+        adc_value = ADC1->DR;
     }
     // __enable_irq();
 }
