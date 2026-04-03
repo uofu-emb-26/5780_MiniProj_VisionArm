@@ -1,5 +1,7 @@
 #include <string.h>
+#include <stdlib.h>
 #include "main.h"
+#include "motor.h"
 #include "stm32f072xb.h"
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx_hal_gpio.h"
@@ -13,6 +15,7 @@ void SetupGPIO_USART(void);
 void SetupUSART3(void);
 void SetupLEDs(void);
 void SystemClock_Config(void);
+void Gyro_Init(uint8_t gyro_addr);
 
 /**
   * @brief  The application entry point.
@@ -30,6 +33,7 @@ int main(void)
   SetupGPIO_USART();
   SetupUSART3();
   i2c_init();
+  motor_init();
 
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
@@ -39,6 +43,12 @@ int main(void)
   uint8_t device_address2 = 0x12;
   char* data = "Hello from master device";
 
+  uint8_t gyro_addr = 0x69;
+  Gyro_Init(gyro_addr);
+
+
+  int32_t accumulated_tilt = 0;
+  int16_t threshold = 800;
   while (1)
   {
     My_HAL_USART_WriteString(USART3, "main: Start of main loop\n");
@@ -58,7 +68,69 @@ int main(void)
     // 3. Wait before next big cycle
     My_HAL_USART_WriteString(USART3, "main: Cycle complete\n");
     HAL_Delay(500); 
+
+
+    //---Read x axis from gyroscope
+    I2C2->CR2 &= ~((0xFF << 16) | (0x3FF << 0));
+    I2C2->CR2 |= (1 << 16) | (gyro_addr << 1);
+    I2C2->CR2 &= ~I2C_CR2_RD_WRN;
+    I2C2->CR2 |= I2C_CR2_START;
+
+    while (!(I2C2->ISR & (I2C_ISR_TXIS | I2C_ISR_NACKF))) {}
+    I2C2->TXDR = 0xA8; // x axis low byte reg
+    while (!(I2C2->ISR & I2C_ISR_TC)) {}
+
+    I2C2->CR2 &= ~((0xFF << 16) | (0x3FF << 0));
+    I2C2->CR2 |= (2 << 16) | (gyro_addr << 1);
+    I2C2->CR2 &= ~I2C_CR2_RD_WRN;
+    I2C2->CR2 |= I2C_CR2_START;
+
+    uint8_t gyro_data[2];
+    for (int i = 0; i < 2; i++) {
+      while (!(I2C2->ISR & (I2C_ISR_RXNE | I2C_ISR_NACKF))) {}
+      gydro_data[i] = I2C2->RXDR;
+    }
+    while (!(I2C2->ISR & I2C_ISR_TC)) {}
+    I2C2->CR2 |= I2C_CR2_STOP;
+
+    // Combine bytes into signed 16-bit
+    int16_t x_velocity = (int16_t) ((gyro_data[1] << 8) | gyro_data[0]);
+
+    // Integrate velocity into angle
+    if (abs(x_velocity) > threshold) {
+      // Scale velocity to slow down motor
+      accumulated_tilt += (x_velocity / 200);
+    }
+
+    // Update target position for motor.c PI loop
+    target_position = (int16_t) accumulated_tilt;
+
+    HAL_Delay(20); // Run loop at ~50Hz
   }
+
+  return -1;
+}
+
+
+void Gyro_Init(uint8_t gyro_addr)
+{
+  // Clears & Sets NBYTES & SADD
+  I2C2->CR2 &= ~((0xFF << 16) | (0x3FF << 0));
+  I2C2->CR2 |= (2 << 16) | (gyro_addr << 1); // NBYTES = 2
+  I2C2->CR2 &= ~I2C_CR2_RD_WRN; // Set to WRITE (0)
+  I2C2->CR2 |= I2C_CR2_START;
+
+  while (!(I2C2->ISR & (I2C_ISR_TXIS | I2C_ISR_NACKF))) {}
+  I2C2->TXDR = 0x20; // CTRL_REG1 reg addr
+
+  while (!(I2C2->ISR & (I2C_ISR_TXIS | I2C_ISR_NACKF))) {}
+  I2C2->TXDR = 0x09; // Enable only x axis
+
+  while (!(I2C2->ISR & I2C_ISR_TC)) {}
+  I2C2->TXDR |= I2C_CR2_STOP;
+
+  HAL_Delay(50);
+}
 
 /**
   * @brief Initializes the GPIO pins for USART
