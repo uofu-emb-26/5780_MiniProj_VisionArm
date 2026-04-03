@@ -7,10 +7,10 @@
 
 volatile int16_t error_integral = 0;    // Integrated error signal
 volatile uint8_t duty_cycle = 0;    	// Output PWM duty cycle
-volatile int16_t target_rpm = 0;    	// Desired speed target
-volatile int16_t motor_speed = 0;   	// Measured motor speed
+volatile int16_t target_position = 0;    // Desired encoder position
+volatile int16_t motor_position = 0;     // Current encoder position
+volatile int16_t error = 0;              // Position error
 volatile int8_t adc_value = 0;      	// ADC measured motor current
-volatile int16_t error = 0;         	// Speed error signal
 volatile uint8_t Kp = 3;            	// Proportional gain
 volatile uint8_t Ki = 2;            	// Integral gain
 
@@ -34,17 +34,17 @@ void log_data(void) {
     // Begin critical section
     __disable_irq();
     uint32_t duty_cycle_copy = duty_cycle;
-    int32_t target_rpm_copy = target_rpm;
-    int32_t motor_speed_copy = motor_speed;
+    int32_t target_position_copy = target_position;
+    int32_t motor_position_copy = motor_position;
     // End critical section
     __enable_irq();
 
     union byte_split data;
     data.uword = duty_cycle_copy;
     SEGGER_RTT_Write (0, &data.bytes, 4);
-    data.word = target_rpm_copy;
+    data.word = target_position_copy;
     SEGGER_RTT_Write (1, &data.bytes, 4);
-    data.word = motor_speed_copy;
+    data.word = motor_position_copy;
     SEGGER_RTT_Write (2, &data.bytes, 4);
 }
 // Sets up the entire motor drive system
