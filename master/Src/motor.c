@@ -5,6 +5,11 @@
  *  -------------------------------------------------------------------------------------------------------------
  */
 
+// Added named constants to replace hardcoded values for readability and easier tuning
+#define POSITION_TOLERANCE 5
+#define MAX_DUTY_CYCLE 100
+#define OUTPUT_SHIFT 5
+
 volatile int16_t error_integral = 0;    // Integrated error signal
 volatile uint8_t duty_cycle = 0;    	// Output PWM duty cycle
 volatile int16_t target_position = 0;    // Desired encoder position
@@ -216,7 +221,7 @@ void PI_update(void) {
     error = target_position - motor_position;
 
     // Stop when close enough
-    if(error > -5 && error < 5) {
+    if(error > -POSITION_TOLERANCE && error < POSITION_TOLERANCE) {
         pwm_setDutyCycle(0);
         duty_cycle = 0;
         error_integral = 0;
@@ -236,12 +241,12 @@ void PI_update(void) {
     output = Kp * output;
 
     // Scale down
-    output = output >> 5;
+    output = output >> OUTPUT_SHIFT;
 
     // Clamp to valid PWM range
-    if(output > 100) {
-        output = 100;
-    }
+    if(output > MAX_DUTY_CYCLE) {
+    output = MAX_DUTY_CYCLE;
+}
 
     pwm_setDutyCycle(output);
     duty_cycle = output;
