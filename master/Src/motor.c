@@ -29,11 +29,11 @@ union byte_split {
     uint8_t bytes[4];
 };
 
-// void log_init(void) {
-//     SEGGER_RTT_ConfigUpBuffer(0, "", buf0, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-//     SEGGER_RTT_ConfigUpBuffer(1, "", buf1, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-//     SEGGER_RTT_ConfigUpBuffer(2, "", buf2, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-// }
+void log_init(void) {
+    SEGGER_RTT_ConfigUpBuffer(0, "", buf0, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    SEGGER_RTT_ConfigUpBuffer(1, "", buf1, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    SEGGER_RTT_ConfigUpBuffer(2, "", buf2, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+}
 
 void log_data(void) {
     // Begin critical section
@@ -52,16 +52,13 @@ void log_data(void) {
     data.word = motor_position_copy;
     SEGGER_RTT_Write (2, &data.bytes, 4);
 }
+
 // Sets up the entire motor drive system
 void motor_init(void) {
     pwm_init();
     encoder_init();
     ADC_init();
-    
-    SEGGER_RTT_ConfigUpBuffer(0, "", buf0, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-    SEGGER_RTT_ConfigUpBuffer(1, "", buf1, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-    SEGGER_RTT_ConfigUpBuffer(2, "", buf2, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-
+    log_init();
 }
 
 // Sets up the PWM and direction signals to drive the H-Bridge
@@ -178,11 +175,9 @@ void ADC_init(void) {
     ADC1->CR |= ADC_CR_ADSTART;             // Signal conversion start
 }
 
-
-
 /*
-Set motor direction for position
-*/
+ * Set motor rotation direction
+ */
 void motor_setDirection(int8_t dir) {
     if(dir >= 0) {
         // Forward
@@ -193,7 +188,7 @@ void motor_setDirection(int8_t dir) {
         GPIOA->ODR &= ~(1 << 5);
         GPIOA->ODR |= (1 << 6);
     }
-}  
+}
 
 /* Run PI control loop
  *

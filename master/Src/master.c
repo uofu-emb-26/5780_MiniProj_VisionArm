@@ -25,6 +25,8 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  // FIXME: Setup GPIO pins for motor
+
   SetupLEDs();
   i2c_init();
 
