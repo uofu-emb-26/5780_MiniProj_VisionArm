@@ -16,8 +16,8 @@ volatile int16_t target_position = 0;    // Desired encoder position
 volatile int16_t motor_position = 0;     // Current encoder position
 volatile int16_t error = 0;              // Position error
 volatile int8_t adc_value = 0;      	// ADC measured motor current
-volatile uint8_t Kp = 3;            	// Proportional gain
-volatile uint8_t Ki = 2;            	// Integral gain
+volatile uint8_t Kp = 3;            	// Proportional gain        // FIXME: Tune the feedback controller
+volatile uint8_t Ki = 2;            	// Integral gain            // FIXME: Tune the feedback controller
 
 static uint8_t buf0[1024];
 static uint8_t buf1[1024];
@@ -207,10 +207,10 @@ void motor_setDirection(int8_t dir) {
  *
  */
 void PI_update(void) {
-    // __disable_irq();
+    __disable_irq();
     //calculate error signal and write to "error" variable
 
-      int16_t output;
+    int16_t output;
 
     // Position error
     error = target_position - motor_position;
@@ -240,8 +240,8 @@ void PI_update(void) {
 
     // Clamp to valid PWM range
     if(output > MAX_DUTY_CYCLE) {
-    output = MAX_DUTY_CYCLE;
-}
+        output = MAX_DUTY_CYCLE;
+    }
 
     pwm_setDutyCycle(output);
     duty_cycle = output;
@@ -250,5 +250,5 @@ void PI_update(void) {
     if(ADC1->ISR & ADC_ISR_EOC) {
         adc_value = ADC1->DR;
     }
-    // __enable_irq();
+    __enable_irq();
 }
