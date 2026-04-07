@@ -158,7 +158,7 @@ static void I2C_HandleTC(I2C_TypeDef* I2C)
   I2C_ongoingTransaction = true;
 
   I2C_GetNextTransaction(I2C);
-  I2C_Setup(I2C, I2C_nextTransaction);
+  I2C_Setup(I2C, &currentTransaction);
 
   I2C->CR2 |= I2C_CR2_START;
 }
