@@ -53,7 +53,7 @@ void I2C_Write(I2C_TypeDef* I2C, uint8_t device_address, uint8_t nbytes, char da
     // Spin loop
   }
 
-  if (I2C->ISR & I2C_ISR_BUSY) {
+  if (I2C_ongoingTransaction) {
     My_HAL_USART_WriteString(USART3, "I2C_Write: I2C was busy... Queueing next transaction\n");
     I2C_SetNextTransaction(I2C, &nextTransaction);
   }

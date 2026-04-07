@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdbool.h>
 #include "main.h"
 #include "stm32f0xx_hal.h"
@@ -7,7 +8,8 @@
 
 // ***** External Declarations *****
 I2C_Transaction* I2C_nextTransaction = NULL;
-uint8_t I2C_error = 0;
+I2C_Errors I2C_error = 0;
+bool I2C_ongoingTransaction = false;
 
 
 // ***** Internal Declarations *****
@@ -79,7 +81,7 @@ void SysTick_Handler(void)
 
 void I2C2_IRQHandler(void)
 {
-  if (!(I2C2->ISR & I2C_ISR_BUSY))
+  if (!I2C_ongoingTransaction)
     I2C_GetNextTransaction(I2C2);
 
   if (I2C2->ISR & I2C_ISR_TXIS) {
@@ -121,6 +123,8 @@ void I2C_SetNextTransaction(I2C_TypeDef* I2C, I2C_Transaction* transaction)
 
 static void I2C_HandleTXIS(I2C_TypeDef* I2C)
 {
+  I2C_ongoingTransaction = true;
+
   nbytes_left--;
   I2C->TXDR = currentTransaction.message[nbytes_left] & 0xFF;
 }
@@ -147,11 +151,13 @@ static void I2C_HandleTC(I2C_TypeDef* I2C)
     if ((currentTransaction.chain))
       I2C_error = NULL_NEXT_TRANSACTION;
 
+    I2C_ongoingTransaction = false;
     return;
   }
 
-  I2C_GetNextTransaction(I2C);
+  I2C_ongoingTransaction = true;
 
+  I2C_GetNextTransaction(I2C);
   I2C_Setup(I2C, I2C_nextTransaction);
 
   I2C->CR2 |= I2C_CR2_START;
