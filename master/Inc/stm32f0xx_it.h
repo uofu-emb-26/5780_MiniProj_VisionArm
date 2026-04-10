@@ -17,7 +17,8 @@ typedef enum {
   TIMEOUT,
   SMBUS_ALERT,
   NBYTES_INVALID,
-  NULL_NEXT_TRANSACTION
+  MISSING_CHAINED_TRANSACTION,
+  MESSAGE_TOO_LONG
 } I2C_Errors;
 
 typedef struct {
@@ -37,6 +38,7 @@ typedef struct {
 extern I2C_Transaction* I2C_nextTransaction;
 extern I2C_Errors I2C_error;
 extern bool I2C_ongoingTransaction;   // Whether there is an ongoing transaction
+extern bool I2C_TransactionQueueEmpty;    // Whether the next transaction struct is empty
 
 /* Exported functions prototypes ---------------------------------------------*/
 void NMI_Handler(void);

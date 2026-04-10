@@ -10,6 +10,7 @@
 I2C_Transaction* I2C_nextTransaction = NULL;
 I2C_Errors I2C_error = 0;
 bool I2C_ongoingTransaction = false;
+bool I2C_TransactionQueueEmpty = true;
 
 
 // ***** Internal Declarations *****
@@ -147,9 +148,9 @@ static void I2C_HandleTC(I2C_TypeDef* I2C)
   if (!(currentTransaction.chain))
     I2C->CR2 |= I2C_CR2_STOP;
 
-  if (I2C_nextTransaction == NULL) {
+  if (I2C_TransactionQueueEmpty) {
     if ((currentTransaction.chain))
-      I2C_error = NULL_NEXT_TRANSACTION;
+      I2C_error = MISSING_CHAINED_TRANSACTION;
 
     I2C_ongoingTransaction = false;
     return;

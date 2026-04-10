@@ -47,9 +47,12 @@ int main(void)
     I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
     My_HAL_USART_WriteString(USART3, "main: Waiting for TC flag\n");
-    while (!(I2C2->ISR & I2C_ISR_TC)) {
+    while (I2C_ongoingTransaction) {
       // Spin loop
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
     }
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
 
     My_HAL_USART_WriteString(USART3, "main: Received TC flag");
 
