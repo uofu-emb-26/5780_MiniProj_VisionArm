@@ -11,8 +11,8 @@
  */
 extern volatile int16_t error_integral;    // Integrated error signal
 extern volatile uint8_t duty_cycle;    // Output PWM duty cycle
-extern volatile int16_t target_rpm;    // Desired speed target
-extern volatile int16_t motor_speed;   // Measured motor speed
+extern volatile int16_t target_position;    // Desired speed target
+extern volatile int16_t motor_position;   // Measured motor speed
 extern volatile int8_t adc_value;      // ADC measured motor current
 extern volatile int16_t error;         // Speed error signal
 extern volatile uint8_t Kp;            // Proportional gain

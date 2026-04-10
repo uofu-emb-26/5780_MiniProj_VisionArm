@@ -6,6 +6,8 @@
 #include "stm32f0xx_it.h"
 #include "i2c_config.h"
 #include "hal_gpio.h"
+#include "motor.h"
+#include "gyro.h"
 
 void SystemClock_Config(void);
 
@@ -20,6 +22,9 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+
+  motor_inti();
+  gyro_init();
   // FIXME: Setup GPIO pins for motor
 
   i2c_init();
@@ -33,6 +38,9 @@ int main(void)
 
   while (1)
   {
+
+    //TODO: Implement gyro readX control here to then control motor
+    
     while (I2C2->ISR & I2C_ISR_BUSY) {
       // Spin loop
     }

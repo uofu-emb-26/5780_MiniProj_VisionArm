@@ -1,5 +1,7 @@
 #include "motor.h"
 #include "SEGGER_RTT.h"
+#include "gyro.h"
+
 /* -------------------------------------------------------------------------------------------------------------
  *  Global Variable and Type Declarations
  *  -------------------------------------------------------------------------------------------------------------
@@ -9,6 +11,8 @@
 #define POSITION_TOLERANCE 5
 #define MAX_DUTY_CYCLE 100
 #define OUTPUT_SHIFT 5
+#define GYRO_DEADBAND   200     
+#define GYRO_SCALE      16      // Tune: how fast tilt drives motor position
 
 volatile int16_t error_integral = 0;    // Integrated error signal
 volatile uint8_t duty_cycle = 0;    	// Output PWM duty cycle
