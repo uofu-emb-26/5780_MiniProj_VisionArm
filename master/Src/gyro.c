@@ -1,12 +1,12 @@
 #include "gyro.h"
 
-#define L3GD20_ADDR_WRITE 0xD6
-#define L3GD20_ADDR_READ 0xD7
+#define I3G4250D_ADDR_WRITE 0xD6
+#define I3G4250D_ADDR_READ 0xD7
 
-#define L3GD20_WHO_AM_I 0x0F
-#define L3GD20_CTRL_REG1 0x20
-#define L3GD20_OUT_X_L 0x28
-#define L3GD20_OUT_X_H 0x29
+#define I3G4250D_WHO_AM_I 0x0F
+#define I3G4250D_CTRL_REG1 0x20
+#define I3G4250D_OUT_X_L 0x28
+#define I3G4250D_OUT_X_H 0x29
 
 // I2C1: PB8 = SCL (AF1), PB9 = SDA (AF1)
 
@@ -17,7 +17,7 @@ static void i2c_wait_idle(void) {
 static void i2c_write_reg(uint8_t reg, uint8_t value) {
     i2c_wait_idle();
 
-    I2C1->CR2 = (L3GD20_ADDR_WRITE) |
+    I2C1->CR2 = (I3G4250D_ADDR_WRITE) |
                 (2 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START |
                 I2C_CR2_AUTOEND;
@@ -35,7 +35,7 @@ static void i2c_write_reg(uint8_t reg, uint8_t value) {
 static uint8_t i2c_read_reg(uint8_t reg) {
     i2c_wait_idle();
 
-    I2C1->CR2 = (L3GD20_ADDR_WRITE) |
+    I2C1->CR2 = (I3G4250D_ADDR_WRITE) |
                 (1 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START;
 
@@ -43,7 +43,7 @@ static uint8_t i2c_read_reg(uint8_t reg) {
     I2C1->TXDR = reg;
     while (!(I2C1->ISR & I2C_ISR_TC));
 
-    I2C1->CR2 = (L3GD20_ADDR_READ) |
+    I2C1->CR2 = (I3G4250D_ADDR_READ) |
                 (1 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START |
                 I2C_CR2_AUTOEND |
@@ -60,7 +60,7 @@ static uint8_t i2c_read_reg(uint8_t reg) {
 
 void gyro_init(void) {
     RCC->AHBENR  |= RCC_AHBENR_GPIOBEN;
-    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN; 
+    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
     // PB8 = SCL, PB9 = SDA, AF1, open-drain
     GPIOB->MODER  &= ~((3 << 16) | (3 << 18));
     GPIOB->MODER  |=  ((2 << 16) | (2 << 18));
@@ -74,11 +74,11 @@ void gyro_init(void) {
 
     for(volatile int i = 0; i < 100000; i++);
 
-    i2c_write_reg(L3GD20_CTRL_REG1, 0x0F);
+    i2c_write_reg(I3G4250D_CTRL_REG1, 0x0F);
 }
 
 int16_t gyro_readX(void) {
-    uint8_t lo = i2c_read_reg(L3GD20_OUT_X_L);
-    uint8_t hi = i2c_read_reg(L3GD20_OUT_X_H);
+    uint8_t lo = i2c_read_reg(I3G4250D_OUT_X_L);
+    uint8_t hi = i2c_read_reg(I3G4250D_OUT_X_H);
     return (int16_t)((hi << 8) | lo);
 }
