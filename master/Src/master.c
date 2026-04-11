@@ -28,6 +28,7 @@ int main(void)
   SetupLEDs();
   i2c_init();
 
+  // For debugging
   SetupGPIO_USART();
   SetupUSART3();
 
@@ -40,21 +41,15 @@ int main(void)
 
   while (1)
   {
-    My_HAL_USART_WriteString(USART3, "main: Start of main loop\n");
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
 
-    My_HAL_USART_WriteString(USART3, "main: Sending I2C write command\n");
     I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
-    My_HAL_USART_WriteString(USART3, "main: Waiting for TC flag\n");
     while (I2C_ongoingTransaction) {
       // Spin loop
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
     }
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-
-    My_HAL_USART_WriteString(USART3, "main: Received TC flag");
 
     I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
