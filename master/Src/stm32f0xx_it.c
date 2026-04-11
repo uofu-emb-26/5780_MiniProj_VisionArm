@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx_it.h"
@@ -7,7 +8,7 @@
 #include "stm32f0xx_hal_i2c.h"
 
 // ***** External Declarations *****
-I2C_Transaction* I2C_nextTransaction = NULL;
+I2C_Transaction I2C_nextTransaction = (I2C_Transaction){0};
 I2C_Errors I2C_error = 0;
 bool I2C_ongoingTransaction = false;
 bool I2C_TransactionQueueEmpty = true;
@@ -16,6 +17,9 @@ bool I2C_TransactionQueueEmpty = true;
 // ***** Internal Declarations *****
 static I2C_Transaction currentTransaction = {0, 0, 0, 0, NULL};
 static uint8_t nbytes_left = 0;
+
+static char nextTransactionMessageBuffer[I2C_MAX_MESSAGE_LEN];
+static char currentTransactionMessageBuffer[I2C_MAX_MESSAGE_LEN];
 
 
 // ***** Helper Function Prototypes *****
@@ -119,7 +123,26 @@ void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction)
 
 void I2C_SetNextTransaction(I2C_TypeDef* I2C, I2C_Transaction* transaction)
 {
-  I2C_nextTransaction = transaction;
+  if (transaction->nbytes > I2C_MAX_MESSAGE_LEN) {
+    I2C_error = MESSAGE_TOO_LONG;
+    return;
+  }
+
+  memcpy(
+          nextTransactionMessageBuffer,
+          transaction->message,
+          transaction->nbytes
+        );
+
+  I2C_nextTransaction = (I2C_Transaction){
+    transaction->nbytes,
+    transaction->address,
+    transaction->read,
+    transaction->chain,
+    nextTransactionMessageBuffer
+  };
+
+  I2C_TransactionQueueEmpty = false;
 }
 
 static void I2C_HandleTXIS(I2C_TypeDef* I2C)
@@ -167,15 +190,23 @@ static void I2C_HandleTC(I2C_TypeDef* I2C)
 static void I2C_GetNextTransaction(I2C_TypeDef* I2C)
 {
   if (I2C == I2C2) {
+
+    memcpy(
+            currentTransactionMessageBuffer,
+            nextTransactionMessageBuffer,
+            I2C_nextTransaction.nbytes
+          );
+
     // Copy I2C_nextTransaction struct and reset it
     currentTransaction = (I2C_Transaction){
-      I2C_nextTransaction->nbytes,
-      I2C_nextTransaction->address,
-      I2C_nextTransaction->read,
-      I2C_nextTransaction->chain,
-      I2C_nextTransaction->message
+      I2C_nextTransaction.nbytes,
+      I2C_nextTransaction.address,
+      I2C_nextTransaction.read,
+      I2C_nextTransaction.chain,
+      currentTransactionMessageBuffer
     };
 
-    I2C_nextTransaction = NULL;
+    I2C_nextTransaction = (I2C_Transaction){0};
+    I2C_TransactionQueueEmpty = true;
   }
 }

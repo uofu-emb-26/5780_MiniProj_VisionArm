@@ -35,7 +35,7 @@ typedef struct {
   * This pointer is set to `NULL` after it is used to define the current I2C
   * transaction. This pointer is safe to assign to when it is `NULL`.
   */
-extern I2C_Transaction* I2C_nextTransaction;
+extern I2C_Transaction I2C_nextTransaction;
 extern I2C_Errors I2C_error;
 extern bool I2C_ongoingTransaction;   // Whether there is an ongoing transaction
 extern bool I2C_TransactionQueueEmpty;    // Whether the next transaction struct is empty
