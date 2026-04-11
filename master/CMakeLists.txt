@@ -6,6 +6,7 @@ add_executable(master
     Src/stm32f0xx_it.c
     Src/i2c_config.c
     Src/motor.c
+    Src/gyro.c
 )
 
 # Add the map file to the list of files to be removed with 'clean' target

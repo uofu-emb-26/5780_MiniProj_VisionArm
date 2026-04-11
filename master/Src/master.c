@@ -28,9 +28,8 @@ int main(void)
   SystemClock_Config();
 
 
-  motor_inti();
+  motor_init();
   gyro_init();
-  // FIXME: Setup GPIO pins for motor
 
   SetupLEDs();
   i2c_init();
@@ -49,7 +48,6 @@ int main(void)
   while (1)
   {
     //TODO: Implement gyro readX control here to then control motor
-
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
 
