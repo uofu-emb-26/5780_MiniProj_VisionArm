@@ -16,7 +16,7 @@ bool I2C_TransactionQueueEmpty = true;
 
 // ***** Internal Declarations *****
 static I2C_Transaction currentTransaction = {0, 0, 0, 0, NULL};
-static uint8_t nbytes_left = 0;
+static uint8_t nbytes_sent = 0;
 
 static char nextTransactionMessageBuffer[I2C_MAX_MESSAGE_LEN];
 static char currentTransactionMessageBuffer[I2C_MAX_MESSAGE_LEN];
@@ -116,9 +116,6 @@ void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction)
   I2C->CR2 |= (transaction->nbytes << I2C_CR2_NBYTES_Pos)
             | (transaction->address << (I2C_CR2_SADD_Pos + 1)
             | (transaction->read << I2C_CR2_RD_WRN_Pos));
-
-  if (!(I2C->ISR & I2C_ISR_BUSY))
-    nbytes_left = transaction->nbytes;
 }
 
 void I2C_SetNextTransaction(I2C_TypeDef* I2C, I2C_Transaction* transaction)
@@ -149,8 +146,13 @@ static void I2C_HandleTXIS(I2C_TypeDef* I2C)
 {
   I2C_ongoingTransaction = true;
 
-  nbytes_left--;
-  I2C->TXDR = currentTransaction.message[nbytes_left] & 0xFF;
+  if (nbytes_sent >= currentTransaction.nbytes) {
+    I2C_error = MESSAGE_TOO_LONG;
+    return;
+  }
+
+  I2C->TXDR = currentTransaction.message[nbytes_sent] & 0xFF;
+  nbytes_sent++;
 }
 
 // FIXME: Implement
@@ -167,6 +169,8 @@ static void I2C_HandleNACK(I2C_TypeDef* I2C)
 
 static void I2C_HandleTC(I2C_TypeDef* I2C)
 {
+  nbytes_sent = 0;
+
   // FIXME: This function has no way to indicate which transaction in the chain it is handling
   if (!(currentTransaction.chain))
     I2C->CR2 |= I2C_CR2_STOP;
