@@ -82,7 +82,7 @@ void pwm_init(void) {
     GPIOA->MODER |= (1 << 10) | (1 << 12);
 
     //Initialize one direction pin to high, the other low
-    motor_setDirection(1);
+    motor_setDirection(MOTOR_FORWARD);
 
     // Set up PWM timer
     RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
@@ -182,15 +182,17 @@ void ADC_init(void) {
 /*
  * Set motor rotation direction
  */
-void motor_setDirection(int8_t dir) {
-    if(dir >= 0) {
-        // Forward
+void motor_setDirection(MOTOR_DIRECTION dir) {
+    switch (dir >= 0) {
+    default:
+    case MOTOR_FORWARD:
         GPIOA->ODR |= (1 << 5);
         GPIOA->ODR &= ~(1 << 6);
-    } else {
-        // Back
+        break;
+    case MOTOR_REVERSE:
         GPIOA->ODR &= ~(1 << 5);
         GPIOA->ODR |= (1 << 6);
+        break;
     }
 }
 
@@ -230,10 +232,10 @@ void PI_update(void) {
 
     // Set motor direction based on sign of error
     if(error > 0) {
-        motor_setDirection(1);
+        motor_setDirection(MOTOR_FORWARD);
         output = error;
     } else {
-        motor_setDirection(-1);
+        motor_setDirection(MOTOR_REVERSE);
         output = -error;
     }
 

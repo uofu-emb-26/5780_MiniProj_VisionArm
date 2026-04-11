@@ -9,6 +9,12 @@
  *  Global Variable and Type Declarations
  *  -------------------------------------------------------------------------------------------------------------
  */
+
+typedef enum {
+    MOTOR_FORWARD = 0,
+    MOTOR_REVERSE
+} MOTOR_DIRECTION;
+
 extern volatile int16_t error_integral;    // Integrated error signal
 extern volatile uint8_t duty_cycle;    // Output PWM duty cycle
 extern volatile int16_t target_position;    // Desired speed target
@@ -45,7 +51,7 @@ void log_data(void);
 void pwm_init(void);
 
 //Set Direction
-void motor_setDirection(int8_t dir);
+void motor_setDirection(MOTOR_DIRECTION dir);
 
 
 // Sets up encoder interface to read motor speed
