@@ -23,7 +23,7 @@ int main(void)
   SystemClock_Config();
 
 
-  motor_inti();
+  motor_init();
   gyro_init();
   // FIXME: Setup GPIO pins for motor
 
@@ -40,7 +40,7 @@ int main(void)
   {
 
     //TODO: Implement gyro readX control here to then control motor
-    
+
     while (I2C2->ISR & I2C_ISR_BUSY) {
       // Spin loop
     }

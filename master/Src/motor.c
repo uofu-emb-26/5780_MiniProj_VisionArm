@@ -9,10 +9,11 @@
 
 // Added named constants to replace hardcoded values for readability and easier tuning
 #define POSITION_TOLERANCE 5
-#define MAX_DUTY_CYCLE 100
-#define OUTPUT_SHIFT 5
-#define GYRO_DEADBAND   200     
-#define GYRO_SCALE      16      // Tune: how fast tilt drives motor position
+#define MAX_DUTY_CYCLE     100
+#define OUTPUT_SHIFT       5
+
+#define GYRO_DEADBAND 200   // Used to ignore noise thats within +- 200
+#define GYRO_SCALE    16       // Scales the raw readings down for motor   // FIXME: Tune how fast tilt drives motor position
 
 volatile int16_t error_integral = 0;    // Integrated error signal
 volatile uint8_t duty_cycle = 0;    	// Output PWM duty cycle
@@ -81,8 +82,7 @@ void pwm_init(void) {
     GPIOA->MODER |= (1 << 10) | (1 << 12);
 
     //Initialize one direction pin to high, the other low
-    GPIOA->ODR |= (1 << 5);
-    GPIOA->ODR &= ~(1 << 6);
+    motor_setDirection(1);
 
     // Set up PWM timer
     RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
@@ -102,8 +102,8 @@ void pwm_init(void) {
 
 // Set the duty cycle of the PWM, accepts (0-100)
 void pwm_setDutyCycle(uint8_t duty) {
-    if(duty <= 100) {
-        TIM14->CCR1 = ((uint32_t)duty*TIM14->ARR)/100;  // Use linear transform to produce CCR1 value
+    if(duty <= MAX_DUTY_CYCLE) {
+        TIM14->CCR1 = ((uint32_t)duty*TIM14->ARR)/MAX_DUTY_CYCLE;  // Use linear transform to produce CCR1 value
         // (CCR1 == "pulse" parameter in PWM struct used by peripheral library)
     }
 }
@@ -219,6 +219,7 @@ void PI_update(void) {
     // Position error
     error = target_position - motor_position;
 
+    // FIXME: This is not necessary if we add integration feedback
     // Stop when close enough
     if(error > -POSITION_TOLERANCE && error < POSITION_TOLERANCE) {
         pwm_setDutyCycle(0);

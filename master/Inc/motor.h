@@ -1,5 +1,5 @@
-#ifndef MOTOR_H_
-#define MOTOR_H_
+#ifndef __MOTOR_H
+#define __MOTOR_H
 
 #include <stdio.h>
 #include <stdlib.h>
