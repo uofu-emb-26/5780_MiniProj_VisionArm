@@ -2,6 +2,7 @@
 #ifndef __STM32F0xx_IT_H
 #define __STM32F0xx_IT_H
 
+#include <stdbool.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -16,14 +17,15 @@ typedef enum {
   TIMEOUT,
   SMBUS_ALERT,
   NBYTES_INVALID,
-  NULL_NEXT_TRANSACTION
+  MISSING_CHAINED_TRANSACTION,
+  MESSAGE_TOO_LONG
 } I2C_Errors;
 
 typedef struct {
   uint8_t nbytes;   // The number of bytes transmitted in this transaction
   uint8_t address;  // The device address for this transaction
-  uint8_t read;     // Set to true for a read transaction
-  uint8_t chain;    // Set to true to chain another transaction after the current one
+  bool    read;     // Set to true for a read transaction
+  bool    chain;    // Set to true to chain another transaction after the current one
   char*   message;  // A pointer to the message to send or buffer to read into
 } I2C_Transaction;
 
@@ -33,8 +35,10 @@ typedef struct {
   * This pointer is set to `NULL` after it is used to define the current I2C
   * transaction. This pointer is safe to assign to when it is `NULL`.
   */
-extern I2C_Transaction* I2C_nextTransaction;
-extern uint8_t I2C_error;
+extern I2C_Transaction I2C_nextTransaction;
+extern I2C_Errors I2C_error;
+extern bool I2C_ongoingTransaction;   // Whether there is an ongoing transaction
+extern bool I2C_TransactionQueueEmpty;    // Whether the next transaction struct is empty
 
 /* Exported functions prototypes ---------------------------------------------*/
 void NMI_Handler(void);
