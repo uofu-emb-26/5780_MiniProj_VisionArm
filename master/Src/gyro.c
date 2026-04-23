@@ -65,6 +65,10 @@ void gyro_init(void) {
     GPIOB->MODER  &= ~((3 << 16) | (3 << 18));
     GPIOB->MODER  |=  ((2 << 16) | (2 << 18));
     GPIOB->OTYPER |=  (1 << 8) | (1 << 9);
+    // Enable I2C pull-up resistors
+    GPIOB->PUPDR &= ~((3 << 16) | (3 << 18));
+    GPIOB->PUPDR |= ((1 << 16) | (1 << 18));
+    
     GPIOB->AFR[1] &= ~((0xF << 0) | (0xF << 4));
     GPIOB->AFR[1] |=  ((1 << 0) | (1 << 4));     // AF1 = I2C1
 

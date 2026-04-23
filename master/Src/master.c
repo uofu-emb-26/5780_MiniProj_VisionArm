@@ -11,6 +11,8 @@
 #include "motor.h"
 #include "gyro.h"
 
+extern volatile int16_t target_position;
+
 void SetupGPIO_USART(void);
 void SetupUSART3(void);
 void SetupLEDs(void);
@@ -47,7 +49,9 @@ int main(void)
 
   while (1)
   {
-    //TODO: Implement gyro readX control here to then control motor
+    // Read raw X-axis velocity from gyroscope
+    int16_t x_axis_rate = gyro_readX();
+    target_position = x_axis_rate;
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
 
