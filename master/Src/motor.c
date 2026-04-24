@@ -1,9 +1,19 @@
 #include "motor.h"
 #include "SEGGER_RTT.h"
+#include "gyro.h"
+
 /* -------------------------------------------------------------------------------------------------------------
  *  Global Variable and Type Declarations
  *  -------------------------------------------------------------------------------------------------------------
  */
+
+// Added named constants to replace hardcoded values for readability and easier tuning
+#define POSITION_TOLERANCE 5
+#define MAX_DUTY_CYCLE     100
+#define OUTPUT_SHIFT       5
+
+#define GYRO_DEADBAND 200   // Used to ignore noise thats within +- 200
+#define GYRO_SCALE    16       // Scales the raw readings down for motor   // FIXME: Tune how fast tilt drives motor position
 
 volatile int16_t error_integral = 0;    // Integrated error signal
 volatile uint8_t duty_cycle = 0;    	// Output PWM duty cycle
@@ -11,8 +21,8 @@ volatile int16_t target_position = 0;    // Desired encoder position
 volatile int16_t motor_position = 0;     // Current encoder position
 volatile int16_t error = 0;              // Position error
 volatile int8_t adc_value = 0;      	// ADC measured motor current
-volatile uint8_t Kp = 3;            	// Proportional gain
-volatile uint8_t Ki = 2;            	// Integral gain
+volatile uint8_t Kp = 3;            	// Proportional gain        // FIXME: Tune the feedback controller
+volatile uint8_t Ki = 2;            	// Integral gain            // FIXME: Tune the feedback controller
 
 static uint8_t buf0[1024];
 static uint8_t buf1[1024];
@@ -24,11 +34,11 @@ union byte_split {
     uint8_t bytes[4];
 };
 
-// void log_init(void) {
-//     SEGGER_RTT_ConfigUpBuffer(0, "", buf0, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-//     SEGGER_RTT_ConfigUpBuffer(1, "", buf1, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-//     SEGGER_RTT_ConfigUpBuffer(2, "", buf2, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-// }
+void log_init(void) {
+    SEGGER_RTT_ConfigUpBuffer(0, "", buf0, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    SEGGER_RTT_ConfigUpBuffer(1, "", buf1, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+    SEGGER_RTT_ConfigUpBuffer(2, "", buf2, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+}
 
 void log_data(void) {
     // Begin critical section
@@ -47,16 +57,13 @@ void log_data(void) {
     data.word = motor_position_copy;
     SEGGER_RTT_Write (2, &data.bytes, 4);
 }
+
 // Sets up the entire motor drive system
 void motor_init(void) {
     pwm_init();
     encoder_init();
     ADC_init();
-    
-    SEGGER_RTT_ConfigUpBuffer(0, "", buf0, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-    SEGGER_RTT_ConfigUpBuffer(1, "", buf1, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-    SEGGER_RTT_ConfigUpBuffer(2, "", buf2, 1024, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-
+    log_init();
 }
 
 // Sets up the PWM and direction signals to drive the H-Bridge
@@ -75,8 +82,7 @@ void pwm_init(void) {
     GPIOA->MODER |= (1 << 10) | (1 << 12);
 
     //Initialize one direction pin to high, the other low
-    GPIOA->ODR |= (1 << 5);
-    GPIOA->ODR &= ~(1 << 6);
+    motor_setDirection(MOTOR_FORWARD);
 
     // Set up PWM timer
     RCC->APB1ENR |= RCC_APB1ENR_TIM14EN;
@@ -96,8 +102,8 @@ void pwm_init(void) {
 
 // Set the duty cycle of the PWM, accepts (0-100)
 void pwm_setDutyCycle(uint8_t duty) {
-    if(duty <= 100) {
-        TIM14->CCR1 = ((uint32_t)duty*TIM14->ARR)/100;  // Use linear transform to produce CCR1 value
+    if(duty <= MAX_DUTY_CYCLE) {
+        TIM14->CCR1 = ((uint32_t)duty*TIM14->ARR)/MAX_DUTY_CYCLE;  // Use linear transform to produce CCR1 value
         // (CCR1 == "pulse" parameter in PWM struct used by peripheral library)
     }
 }
@@ -173,22 +179,22 @@ void ADC_init(void) {
     ADC1->CR |= ADC_CR_ADSTART;             // Signal conversion start
 }
 
-
-
 /*
-Set motor direction for position
-*/
-void motor_setDirection(int8_t dir) {
-    if(dir >= 0) {
-        // Forward
+ * Set motor rotation direction
+ */
+void motor_setDirection(MOTOR_DIRECTION dir) {
+    switch (dir >= 0) {
+    default:
+    case MOTOR_FORWARD:
         GPIOA->ODR |= (1 << 5);
         GPIOA->ODR &= ~(1 << 6);
-    } else {
-        // Back
+        break;
+    case MOTOR_REVERSE:
         GPIOA->ODR &= ~(1 << 5);
         GPIOA->ODR |= (1 << 6);
+        break;
     }
-}  
+}
 
 /* Run PI control loop
  *
@@ -207,16 +213,17 @@ void motor_setDirection(int8_t dir) {
  *
  */
 void PI_update(void) {
-    // __disable_irq();
+    __disable_irq();
     //calculate error signal and write to "error" variable
 
-      int16_t output;
+    int16_t output;
 
     // Position error
     error = target_position - motor_position;
 
+    // FIXME: This is not necessary if we add integration feedback
     // Stop when close enough
-    if(error > -5 && error < 5) {
+    if(error > -POSITION_TOLERANCE && error < POSITION_TOLERANCE) {
         pwm_setDutyCycle(0);
         duty_cycle = 0;
         error_integral = 0;
@@ -225,10 +232,10 @@ void PI_update(void) {
 
     // Set motor direction based on sign of error
     if(error > 0) {
-        motor_setDirection(1);
+        motor_setDirection(MOTOR_FORWARD);
         output = error;
     } else {
-        motor_setDirection(-1);
+        motor_setDirection(MOTOR_REVERSE);
         output = -error;
     }
 
@@ -236,11 +243,11 @@ void PI_update(void) {
     output = Kp * output;
 
     // Scale down
-    output = output >> 5;
+    output = output >> OUTPUT_SHIFT;
 
     // Clamp to valid PWM range
-    if(output > 100) {
-        output = 100;
+    if(output > MAX_DUTY_CYCLE) {
+        output = MAX_DUTY_CYCLE;
     }
 
     pwm_setDutyCycle(output);
@@ -250,5 +257,5 @@ void PI_update(void) {
     if(ADC1->ISR & ADC_ISR_EOC) {
         adc_value = ADC1->DR;
     }
-    // __enable_irq();
+    __enable_irq();
 }
