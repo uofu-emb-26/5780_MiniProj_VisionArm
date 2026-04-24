@@ -8,7 +8,9 @@
 #define I3G4250D_OUT_X_L 0x28
 #define I3G4250D_OUT_X_H 0x29
 
-// I2C1: PB8 = SCL (AF1), PB9 = SDA (AF1)
+#define I3G4250D_OUT_Y_L 0x2A
+#define I3G4250D_OUT_Y_H 0x2B
+
 
 static void i2c_wait_idle(void) {
     while (I2C1->ISR & I2C_ISR_BUSY);
@@ -59,30 +61,44 @@ static uint8_t i2c_read_reg(uint8_t reg) {
 }
 
 void gyro_init(void) {
-    RCC->AHBENR  |= RCC_AHBENR_GPIOBEN;
-    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
-    // PB8 = SCL, PB9 = SDA, AF1, open-drain
-    GPIOB->MODER  &= ~((3 << 16) | (3 << 18));
-    GPIOB->MODER  |=  ((2 << 16) | (2 << 18));
-    GPIOB->OTYPER |=  (1 << 8) | (1 << 9);
-    // Enable I2C pull-up resistors
-    GPIOB->PUPDR &= ~((3 << 16) | (3 << 18));
-    GPIOB->PUPDR |= ((1 << 16) | (1 << 18));
-    
-    GPIOB->AFR[1] &= ~((0xF << 0) | (0xF << 4));
-    GPIOB->AFR[1] |=  ((1 << 0) | (1 << 4));     // AF1 = I2C1
+    RCC->AHBENR  |= RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN;
+    RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+    // PC0 general & High: Enable I2C mode
+    GPIOC->MODER &= ~(3 << 0);
+    GPIOC->MODER |= (1 << 0);
+    GPIOC->OTYPER &= ~(1 << 0);
+    GPIOC->ODR |= (1 << 0);
+    // PB14 general & High: addr = 0xD6
+    GPIOB->MODER &= ~(3 << 28);
+    GPIOB->MODER |= (1 << 28);
+    GPIOB->OTYPER &= ~(1 << 14);
+    GPIOB->ODR |= (1 << 14);
 
-    I2C1->CR1 = 0;
-    I2C1->TIMINGR = 0x10805E89;
+    // PB13 = SCL, PB11 = SDA, open-drain
+    GPIOB->MODER  &= ~((3 << 22) | (3 << 26));
+    GPIOB->MODER  |=  ((2 << 22) | (2 << 26));
+    GPIOB->OTYPER |=  (1 << 11) | (1 << 13);
+    // PB11 to AF1, PB13 to AF5
+    GPIOB->AFR[1] &= ~((0xF << 12) | (0xF << 20));
+    GPIOB->AFR[1] |=  ((1 << 12) | (5 << 20));     // AF1 = I2C1
+
+    I2C1->CR1 &= ~I2C_CR1_PE;
+    I2C1->TIMINGR = 0x10420F13;
     I2C1->CR1 |= I2C_CR1_PE;
 
     for(volatile int i = 0; i < 100000; i++);
 
-    i2c_write_reg(I3G4250D_CTRL_REG1, 0x0F);
+    i2c_write_reg(0x20, 0x0F);
 }
 
 int16_t gyro_readX(void) {
     uint8_t lo = i2c_read_reg(I3G4250D_OUT_X_L);
     uint8_t hi = i2c_read_reg(I3G4250D_OUT_X_H);
+    return (int16_t)((hi << 8) | lo);
+}
+
+int16_t gyro_readY(void) {
+    uint8_t lo = i2c_read_reg(I3G4250D_OUT_Y_L);
+    uint8_t hi = i2c_read_reg(I3G4250D_OUT_Y_H);
     return (int16_t)((hi << 8) | lo);
 }
