@@ -1,6 +1,7 @@
 #include "motor.h"
 #include "SEGGER_RTT.h"
 #include "gyro.h"
+#include "stm32f072xb.h"
 
 /* -------------------------------------------------------------------------------------------------------------
  *  Global Variable and Type Declarations
@@ -9,8 +10,8 @@
 
 // Added named constants to replace hardcoded values for readability and easier tuning
 #define POSITION_TOLERANCE 5
-#define MAX_DUTY_CYCLE     100
-#define OUTPUT_SHIFT       5
+#define MAX_DUTY_CYCLE     90
+#define OUTPUT_SHIFT       1
 
 #define GYRO_DEADBAND 200   // Used to ignore noise thats within +- 200
 #define GYRO_SCALE    16       // Scales the raw readings down for motor   // FIXME: Tune how fast tilt drives motor position
@@ -21,8 +22,9 @@ volatile int16_t target_position = 0;    // Desired encoder position
 volatile int16_t motor_position = 0;     // Current encoder position
 volatile int16_t error = 0;              // Position error
 volatile int8_t adc_value = 0;      	// ADC measured motor current
-volatile uint8_t Kp = 3;            	// Proportional gain        // FIXME: Tune the feedback controller
+volatile uint8_t Kp = 1;            	// Proportional gain        // FIXME: Tune the feedback controller
 volatile uint8_t Ki = 2;            	// Integral gain            // FIXME: Tune the feedback controller
+volatile MOTOR_DIRECTION motor_dir = MOTOR_FORWARD;
 
 static uint8_t buf0[1024];
 static uint8_t buf1[1024];
@@ -70,6 +72,8 @@ void motor_init(void) {
 void pwm_init(void) {
 
     // Set up pin PA4 for H-bridge PWM output (TIMER 14 CH1)
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+
     GPIOA->MODER |= (1 << 9);
     GPIOA->MODER &= ~(1 << 8);
 
@@ -77,9 +81,9 @@ void pwm_init(void) {
     GPIOA->AFR[0] &= 0xFFF0FFFF; // clear PA4 bits,
     GPIOA->AFR[0] |= (1 << 18);
 
-    // Set up a PA5, PA6 as GPIO output pins for motor direction control
-    GPIOA->MODER &= 0xFFFFC3FF; // clear PA5, PA6 bits,
-    GPIOA->MODER |= (1 << 10) | (1 << 12);
+    // Set up a PA5, PA8 as GPIO output pins for motor direction control
+    GPIOA->MODER &= ~(GPIO_MODER_MODER5 | GPIO_MODER_MODER8); // clear PA5, PA8 bits,
+    GPIOA->MODER |= (GPIO_MODER_MODER5_0 | GPIO_MODER_MODER8_0);
 
     //Initialize one direction pin to high, the other low
     motor_setDirection(MOTOR_FORWARD);
@@ -128,7 +132,7 @@ void encoder_init(void) {
     TIM3->CCMR1 |= (TIM_CCMR1_CC1S_0 | TIM_CCMR1_CC2S_0);   // TI1FP1 and TI2FP2 signals connected to CH1 and CH2
     TIM3->SMCR |= (TIM_SMCR_SMS_1 | TIM_SMCR_SMS_0);        // Capture encoder on both rising and falling edges
     TIM3->ARR = 0xFFFF;
-    TIM3->CNT = 0;
+    TIM3->CNT = 0x7FFF;
     // (Could also cast unsigned register to signed number to get negative numbers if it rotates backwards past zero
     //  just another option, the mid-bias is a bit simpler to understand though.)
     TIM3->CR1 |= TIM_CR1_CEN;                               // Enable timer
@@ -150,7 +154,8 @@ void encoder_init(void) {
 
 // Encoder interrupt to calculate motor position, also manages PI controller
 void TIM6_DAC_IRQHandler(void) {
-    motor_position = (int16_t)TIM3->CNT;
+    motor_position += (int16_t)(TIM3->CNT - 0x7FFF);
+    TIM3->CNT = 0x7FFF;
 
     PI_update();
     log_data();
@@ -183,15 +188,19 @@ void ADC_init(void) {
  * Set motor rotation direction
  */
 void motor_setDirection(MOTOR_DIRECTION dir) {
-    switch (dir >= 0) {
-    default:
-    case MOTOR_FORWARD:
+    switch (dir) {
+        case MOTOR_FORWARD:
         GPIOA->ODR |= (1 << 5);
-        GPIOA->ODR &= ~(1 << 6);
+        GPIOA->ODR &= ~(1 << 8);
+
+        motor_dir = MOTOR_FORWARD;
         break;
+    default:
     case MOTOR_REVERSE:
         GPIOA->ODR &= ~(1 << 5);
-        GPIOA->ODR |= (1 << 6);
+        GPIOA->ODR |= (1 << 8);
+
+        motor_dir = MOTOR_REVERSE;
         break;
     }
 }
@@ -221,34 +230,43 @@ void PI_update(void) {
     // Position error
     error = target_position - motor_position;
 
+    // if (motor_dir == MOTOR_REVERSE)
+    //     error = -1*error;
+
     // FIXME: This is not necessary if we add integration feedback
     // Stop when close enough
-    if(error > -POSITION_TOLERANCE && error < POSITION_TOLERANCE) {
+    if((error > -POSITION_TOLERANCE) && (error < POSITION_TOLERANCE)) {
         pwm_setDutyCycle(0);
         duty_cycle = 0;
         error_integral = 0;
+        if(ADC1->ISR & ADC_ISR_EOC) {
+            adc_value = ADC1->DR;
+        }
+
+        __enable_irq();
         return;
     }
 
-    // Set motor direction based on sign of error
-    if(error > 0) {
+    if (error >= 0) {
         motor_setDirection(MOTOR_FORWARD);
         output = error;
-    } else {
+    }
+    else {
         motor_setDirection(MOTOR_REVERSE);
         output = -error;
     }
 
     // Proportional control only
-    output = Kp * output;
+    output = Kp * error;
 
     // Scale down
-    output = output >> OUTPUT_SHIFT;
+    output = output >> OUTPUT_SHIFT; 
 
     // Clamp to valid PWM range
-    if(output > MAX_DUTY_CYCLE) {
+    if(output > MAX_DUTY_CYCLE)
         output = MAX_DUTY_CYCLE;
-    }
+    else if (output < 0)
+        output = 0;
 
     pwm_setDutyCycle(output);
     duty_cycle = output;

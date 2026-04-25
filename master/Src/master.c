@@ -11,12 +11,12 @@
 #include "motor.h"
 #include "gyro.h"
 
-#define xMax 2000 // ~ 180
-#define xMin -2000
-#define yMax 1200
-#define yMin -500
-#define zMax 1500
-#define zMin -1500
+#define xMax 2500
+#define xMin -2500
+#define yMax 2500
+#define yMin -2500
+#define zMax 2500
+#define zMin -2500
 
 extern volatile int16_t target_position; // Master's motor
 int16_t target_pos_y = 0; // Slave's motor
