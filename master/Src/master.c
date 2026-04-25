@@ -10,6 +10,7 @@
 #include "hal_gpio.h"
 #include "motor.h"
 #include "gyro.h"
+#include "SEGGER_RTT.h"
 
 extern volatile int16_t target_position;
 
@@ -47,6 +48,10 @@ int main(void)
   char* data = "Hello from master device";
   int16_t threshold = 250;
 
+  int i = 1;
+
+  target_position = 50;
+
   while (1)
   {
     I2C2->CR1 &= ~(I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
@@ -66,12 +71,32 @@ int main(void)
     else if (x_val < -threshold) {
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
     }
-    I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
-    while (I2C_ongoingTransaction) {
-      // Spin loop
+
+    if (i == 5) {
+      // target_position = (target_position + 10) % 360;
+      target_position *= -1;
+      i = 1;
     }
-    HAL_Delay(50); // Give time for slave's interrupt handler
+    else {
+      i++;
+    }
+
+    volatile uint32_t temp = TIM2->CNT;
+
+    // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+
+    // while (I2C_ongoingTransaction) {
+    //   // Spin loop
+    // }
+
+    HAL_Delay(400);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+
+    // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+
+    HAL_Delay(100); // Give time for slave's interrupt handler
   }
   return -1;
 }
