@@ -1,4 +1,5 @@
 #include "gyro.h"
+#include "main.h"
 
 #define I3G4250D_ADDR_WRITE 0xD6
 #define I3G4250D_ADDR_READ 0xD7
@@ -87,7 +88,6 @@ void gyro_init(void) {
 
     // PB15 to Input mode
     // GPIOB->MODER &= ~(3 << 30);
-
 
     I2C2->CR1 &= ~I2C_CR1_PE;
     I2C2->TIMINGR = 0x10420F13;
