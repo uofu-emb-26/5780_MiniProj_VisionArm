@@ -13,49 +13,49 @@
 
 
 static void i2c_wait_idle(void) {
-    while (I2C1->ISR & I2C_ISR_BUSY);
+    while (I2C2->ISR & I2C_ISR_BUSY);
 }
 
 static void i2c_write_reg(uint8_t reg, uint8_t value) {
     i2c_wait_idle();
 
-    I2C1->CR2 = (I3G4250D_ADDR_WRITE) |
+    I2C2->CR2 = (I3G4250D_ADDR_WRITE) |
                 (2 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START |
                 I2C_CR2_AUTOEND;
 
-    while (!(I2C1->ISR & I2C_ISR_TXIS));
-    I2C1->TXDR = reg;
+    while (!(I2C2->ISR & I2C_ISR_TXIS));
+    I2C2->TXDR = reg;
 
-    while (!(I2C1->ISR & I2C_ISR_TXIS));
-    I2C1->TXDR = value;
+    while (!(I2C2->ISR & I2C_ISR_TXIS));
+    I2C2->TXDR = value;
 
-    while (!(I2C1->ISR & I2C_ISR_STOPF));
-    I2C1->ICR |= I2C_ICR_STOPCF;
+    while (!(I2C2->ISR & I2C_ISR_STOPF));
+    I2C2->ICR |= I2C_ICR_STOPCF;
 }
 
 static uint8_t i2c_read_reg(uint8_t reg) {
     i2c_wait_idle();
 
-    I2C1->CR2 = (I3G4250D_ADDR_WRITE) |
+    I2C2->CR2 = (I3G4250D_ADDR_WRITE) |
                 (1 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START;
 
-    while (!(I2C1->ISR & I2C_ISR_TXIS));
-    I2C1->TXDR = reg;
-    while (!(I2C1->ISR & I2C_ISR_TC));
+    while (!(I2C2->ISR & I2C_ISR_TXIS));
+    I2C2->TXDR = reg;
+    while (!(I2C2->ISR & I2C_ISR_TC));
 
-    I2C1->CR2 = (I3G4250D_ADDR_READ) |
+    I2C2->CR2 = (I3G4250D_ADDR_READ) |
                 (1 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START |
                 I2C_CR2_AUTOEND |
                 I2C_CR2_RD_WRN;
 
-    while (!(I2C1->ISR & I2C_ISR_RXNE));
-    uint8_t data = I2C1->RXDR;
+    while (!(I2C2->ISR & I2C_ISR_RXNE));
+    uint8_t data = I2C2->RXDR;
 
-    while (!(I2C1->ISR & I2C_ISR_STOPF));
-    I2C1->ICR |= I2C_ICR_STOPCF;
+    while (!(I2C2->ISR & I2C_ISR_STOPF));
+    I2C2->ICR |= I2C_ICR_STOPCF;
 
     return data;
 }
@@ -80,11 +80,11 @@ void gyro_init(void) {
     GPIOB->OTYPER |=  (1 << 11) | (1 << 13);
     // PB11 to AF1, PB13 to AF5
     GPIOB->AFR[1] &= ~((0xF << 12) | (0xF << 20));
-    GPIOB->AFR[1] |=  ((1 << 12) | (5 << 20));     // AF1 = I2C1
+    GPIOB->AFR[1] |=  ((1 << 12) | (5 << 20));     // AF1 = I2C2
 
-    I2C1->CR1 &= ~I2C_CR1_PE;
-    I2C1->TIMINGR = 0x10420F13;
-    I2C1->CR1 |= I2C_CR1_PE;
+    I2C2->CR1 &= ~I2C_CR1_PE;
+    I2C2->TIMINGR = 0x10420F13;
+    I2C2->CR1 |= I2C_CR1_PE;
 
     for(volatile int i = 0; i < 100000; i++);
 
