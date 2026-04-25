@@ -30,7 +30,6 @@ void SetupUSART3(void);
 void SetupLEDs(void);
 void SystemClock_Config(void);
 
-
 /**
  * @brief  The application entry point.
  * @retval int

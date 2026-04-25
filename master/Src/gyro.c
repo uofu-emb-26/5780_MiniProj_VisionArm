@@ -2,6 +2,7 @@
 
 #define I3G4250D_ADDR_WRITE 0xD6
 #define I3G4250D_ADDR_READ 0xD7
+#define I3G4250D_ADDR_7BIT 0x69
 
 #define I3G4250D_WHO_AM_I 0x0F
 #define I3G4250D_CTRL_REG1 0x20
@@ -21,10 +22,10 @@ static void i2c_wait_idle(void) {
 static void i2c_write_reg(uint8_t reg, uint8_t value) {
     i2c_wait_idle();
 
-    I2C2->CR2 = (I3G4250D_ADDR_WRITE) |
+    I2C2->CR2 = ((I3G4250D_ADDR_7BIT << 1) |
                 (2 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START |
-                I2C_CR2_AUTOEND;
+                I2C_CR2_AUTOEND);
 
     while (!(I2C2->ISR & I2C_ISR_TXIS));
     I2C2->TXDR = reg;
@@ -39,7 +40,7 @@ static void i2c_write_reg(uint8_t reg, uint8_t value) {
 static uint8_t i2c_read_reg(uint8_t reg) {
     i2c_wait_idle();
 
-    I2C2->CR2 = (I3G4250D_ADDR_WRITE) |
+    I2C2->CR2 = (I3G4250D_ADDR_7BIT << 1) |
                 (1 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START;
 
@@ -47,7 +48,7 @@ static uint8_t i2c_read_reg(uint8_t reg) {
     I2C2->TXDR = reg;
     while (!(I2C2->ISR & I2C_ISR_TC));
 
-    I2C2->CR2 = (I3G4250D_ADDR_READ) |
+    I2C2->CR2 = (I3G4250D_ADDR_7BIT << 1) |
                 (1 << I2C_CR2_NBYTES_Pos) |
                 I2C_CR2_START |
                 I2C_CR2_AUTOEND |
@@ -70,7 +71,7 @@ void gyro_init(void) {
     GPIOC->MODER |= (1 << 0);
     GPIOC->OTYPER &= ~(1 << 0);
     GPIOC->ODR |= (1 << 0);
-    // PB14 general & High: addr = 0xD6
+    // PB14 general & High for addr control: addr = 0x69
     GPIOB->MODER &= ~(3 << 28);
     GPIOB->MODER |= (1 << 28);
     GPIOB->OTYPER &= ~(1 << 14);
@@ -84,13 +85,21 @@ void gyro_init(void) {
     GPIOB->AFR[1] &= ~((0xF << 12) | (0xF << 20));
     GPIOB->AFR[1] |=  ((1 << 12) | (5 << 20));     // AF1 = I2C2
 
+    // PB15 to Input mode
+    // GPIOB->MODER &= ~(3 << 30);
+
+
     I2C2->CR1 &= ~I2C_CR1_PE;
     I2C2->TIMINGR = 0x10420F13;
     I2C2->CR1 |= I2C_CR1_PE;
 
     for(volatile int i = 0; i < 100000; i++);
 
-    i2c_write_reg(0x20, 0x0F);
+    i2c_write_reg(I3G4250D_CTRL_REG1, 0x0F);
+    uint8_t who = i2c_read_reg(I3G4250D_WHO_AM_I);
+    if (who != 0xD3) {
+        Error_Handler();
+    }
 }
 
 int16_t gyro_readX(void) {
