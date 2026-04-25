@@ -123,7 +123,7 @@ int main(void)
 
 
    I2C_Write(I2C2, slave_addr_y, 2, tx_buff_y);
-   while (I2C_ongoingTransaction) {
+   while (I2C_nextTransaction != NULL) {
      // Spin loop
    }
    HAL_Delay(5); // Give time for slave's interrupt handler
@@ -136,7 +136,7 @@ int main(void)
 
 
    I2C_Write(I2C2, slave_addr_z, 2, tx_buff_z);
-   while (I2C_ongoingTransaction) {
+   while (I2C_nextTransaction != NULL) {
      // Spin loop
    }
 
