@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include "stm32f0xx.h"
 
+// Defines motor direction for forward/reverse control
+typedef enum {
+    MOTOR_FORWARD = 0,
+    MOTOR_REVERSE = 1
+} MOTOR_DIRECTION;
+
 /* -------------------------------------------------------------------------------------------------------------
  *  Global Variable and Type Declarations
  *  -------------------------------------------------------------------------------------------------------------
@@ -45,8 +51,7 @@ void log_data(void);
 void pwm_init(void);
 
 //Set Direction
-void motor_setDirection(int8_t dir);
-
+void motor_setDirection(MOTOR_DIRECTION dir);
 
 // Sets up encoder interface to read motor speed
 void encoder_init(void);

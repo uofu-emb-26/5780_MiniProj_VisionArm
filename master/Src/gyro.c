@@ -1,5 +1,6 @@
 #include "gyro.h"
 #include "main.h"
+#include "stm32f072xb.h"
 
 #define I3G4250D_ADDR_WRITE 0xD6
 #define I3G4250D_ADDR_READ 0xD7

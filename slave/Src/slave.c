@@ -1,6 +1,7 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx.h"
+#include "motor.h"
 
 
 void SystemClock_Config(void);

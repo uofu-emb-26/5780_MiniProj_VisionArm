@@ -2,6 +2,7 @@
 #include "SEGGER_RTT.h"
 #include "gyro.h"
 #include "stm32f072xb.h"
+#include "stm32f0xx.h"
 
 /* -------------------------------------------------------------------------------------------------------------
  *  Global Variable and Type Declarations
