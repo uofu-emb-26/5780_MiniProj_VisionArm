@@ -110,6 +110,13 @@ void pwm_setDutyCycle(uint8_t duty) {
         TIM14->CCR1 = ((uint32_t)duty*TIM14->ARR)/MAX_DUTY_CYCLE;  // Use linear transform to produce CCR1 value
         // (CCR1 == "pulse" parameter in PWM struct used by peripheral library)
     }
+
+    duty_cycle = duty;
+
+    // ADC debug read
+    if(ADC1->ISR & ADC_ISR_EOC) {
+        adc_value = ADC1->DR;
+    }
 }
 
 // Sets up encoder interface to read motor speed
@@ -272,11 +279,5 @@ void PI_update(void) {
         output = 0;
 
     pwm_setDutyCycle(output);
-    duty_cycle = output;
-
-    // ADC debug read
-    if(ADC1->ISR & ADC_ISR_EOC) {
-        adc_value = ADC1->DR;
-    }
     __enable_irq();
 }
