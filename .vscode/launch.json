@@ -68,7 +68,7 @@
                     "timespan": 1,
                     "type": "realtime",
                     "annotate": false,
-                    "maximum": 120,
+                    "maximum": 3200,
                     "minimum": 0,
                     "plots": [
                         {

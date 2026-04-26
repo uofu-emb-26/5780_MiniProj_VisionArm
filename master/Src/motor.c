@@ -1,17 +1,24 @@
+#include <stdint.h>
 #include "motor.h"
+#include "stm32f072xb.h"
 #include "SEGGER_RTT.h"
 #include "gyro.h"
-#include "stm32f072xb.h"
 
 /* -------------------------------------------------------------------------------------------------------------
  *  Global Variable and Type Declarations
  *  -------------------------------------------------------------------------------------------------------------
  */
 
+#define MAX(a, b)         (a > b ? a : b)
+#define MIN(a, b)         (a > b ? b : a)
+#define ABSOLUTE_VALUE(x) (x >= 0 ? x : -1 * x)
+
 // Added named constants to replace hardcoded values for readability and easier tuning
 #define POSITION_TOLERANCE 5
 #define MAX_DUTY_CYCLE     90
-#define OUTPUT_SHIFT       1
+#define OUTPUT_SHIFT       8
+#define INTEGRAL_CLAMP     (100 * (1 << OUTPUT_SHIFT))
+#define MOTOR_TOLERANCE     25        // The minimum tolerable angle difference from the target position
 
 #define GYRO_DEADBAND 200   // Used to ignore noise thats within +- 200
 #define GYRO_SCALE    16       // Scales the raw readings down for motor   // FIXME: Tune how fast tilt drives motor position
@@ -22,8 +29,8 @@ volatile int16_t target_position = 0;    // Desired encoder position
 volatile int16_t motor_position = 0;     // Current encoder position
 volatile int16_t error = 0;              // Position error
 volatile int8_t adc_value = 0;      	// ADC measured motor current
-volatile uint8_t Kp = 1;            	// Proportional gain        // FIXME: Tune the feedback controller
-volatile uint8_t Ki = 2;            	// Integral gain            // FIXME: Tune the feedback controller
+volatile uint8_t Kp = 5;            	// Proportional gain        // FIXME: Tune the feedback controller
+volatile uint8_t Ki = 7;            	// Integral gain            // FIXME: Tune the feedback controller
 volatile MOTOR_DIRECTION motor_dir = MOTOR_FORWARD;
 
 static uint8_t buf0[1024];
@@ -161,7 +168,11 @@ void encoder_init(void) {
 
 // Encoder interrupt to calculate motor position, also manages PI controller
 void TIM6_DAC_IRQHandler(void) {
-    motor_position += (int16_t)(TIM3->CNT - 0x7FFF);
+    // FIXME: This might be better as:
+    // motor_position = (motor_position + (int16_t)(TIM3->CNT - 0x7FFF)) % 360;
+    // to prevent spinning to an angle above 360 degrees
+
+    motor_position += (int16_t)(TIM3->CNT - 0x7FFF) % 360;
     TIM3->CNT = 0x7FFF;
 
     PI_update();
@@ -234,40 +245,43 @@ void PI_update(void) {
 
     int16_t output;
 
-    // Position error
+    // Calculate error between target and actual motor angle
     error = target_position - motor_position;
 
-    if (target_position > motor_position) {
-        motor_dir = MOTOR_FORWARD;
+    if (target_position > motor_position)
+        motor_setDirection(MOTOR_FORWARD);
+    else
+        motor_setDirection(MOTOR_REVERSE);
+
+    // Check if the motor position is within tolerance
+    if (ABSOLUTE_VALUE(error) < MOTOR_TOLERANCE) {
+        pwm_setDutyCycle(0);
+
+        __enable_irq();
+        return;
+    }
+    else if (ABSOLUTE_VALUE(error) < 3 * MOTOR_TOLERANCE) {
+        error_integral = 0;
+    }
+
+    // Prevent error_integral overflow
+    if (error_integral >= 0) {
+        error_integral = MIN(
+                            (int32_t)(error_integral + Ki * error),
+                            (int32_t)INTEGRAL_CLAMP
+                        );
     }
     else {
-        motor_dir = MOTOR_REVERSE;
-        error *= -1;
+        error_integral = MAX(
+                            (int32_t)(error_integral + Ki * error),
+                            -1 * (int32_t)INTEGRAL_CLAMP
+                        );
     }
 
-    // if (motor_dir == MOTOR_REVERSE)
-    //     error = -1*error;
-
-    // FIXME: This is not necessary if we add integration feedback
-    // Stop when close enough
-    // if(error > -POSITION_TOLERANCE && error < POSITION_TOLERANCE) {
-    //     pwm_setDutyCycle(0);
-    //     duty_cycle = 0;
-    //     error_integral = 0;
-    //     return;
-    // }
-
-    // Set motor direction based on sign of error
-    // if(error >= 0) {
-    //     motor_setDirection(MOTOR_FORWARD);
-    //     output = error;
-    // } else {
-    //     motor_setDirection(MOTOR_REVERSE);
-    //     output = error;
-    // }
-
-    // Proportional control only
-    output = Kp * output;
+    // FIXME: Probably need to check for negative overflow here too
+    // Calculate output PWM value and prevent overflow
+    output = MIN((int32_t)(Kp * error + error_integral), (int32_t)INT16_MAX);
+    output = ABSOLUTE_VALUE(output);
 
     // Scale down
     output = output >> OUTPUT_SHIFT;

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "main.h"
 #include "stm32f072xb.h"
 #include "stm32f0xx_hal.h"
@@ -43,46 +44,39 @@ int main(void)
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
 
-  //i2c_setup function shifts adress already
   uint8_t device_address = (0x10);   // STM32 slave device address
+  // FIXME: Add second slave device address
+
   char* data = "Hello from master device";
   int16_t threshold = 250;
 
-  int i = 1;
-
-  target_position = 50;
-
   while (1)
   {
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
+
     I2C2->CR1 &= ~(I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
     // Read raw X-axis velocity from gyroscope
     int16_t x_val = gyro_readX();
     // Enable I2C interrupt for slave communication
     I2C2->CR1 |= (I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
+
     // Velocity to position
     if (x_val > threshold || x_val < -threshold) {
       target_position += (x_val / 16);
     }
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_RESET);
 
     if (x_val > threshold) {
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
     }
     else if (x_val < -threshold) {
-      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
     }
 
 
-    if (i == 5) {
-      // target_position = (target_position + 10) % 360;
-      target_position *= -1;
-      i = 1;
-    }
-    else {
-      i++;
-    }
+    // FIXME: Test code for creating random motor movements
+    // target_position = ((uint16_t)random()) % 3200;
 
-    volatile uint32_t temp = TIM2->CNT;
+    volatile uint32_t temp = TIM2->CNT; // FIXME: This probably doesn't do anything
 
     // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
