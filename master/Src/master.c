@@ -1,5 +1,5 @@
-#include <string.h>
-#include <stdlib.h>
+// #include <string.h>
+// #include <stdlib.h>
 #include "main.h"
 #include "stm32f072xb.h"
 #include "stm32f0xx_hal.h"
@@ -11,7 +11,10 @@
 #include "hal_gpio.h"
 #include "motor.h"
 #include "gyro.h"
-#include "SEGGER_RTT.h"
+// #include "SEGGER_RTT.h"
+
+#define DEVICE_ADDRESS_Y 0x10
+#define DEVICE_ADDRESS_Z 0x12
 
 extern volatile int16_t target_position;
 
@@ -44,8 +47,8 @@ int main(void)
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
 
-  uint8_t device_address = (0x10);   // STM32 slave device address
-  // FIXME: Add second slave device address
+  uint8_t device_address_y = DEVICE_ADDRESS_Y;  // Y-axis controller address
+  uint8_t device_address_z = DEVICE_ADDRESS_Z;  // Z-axis controller address
 
   char* data = "Hello from master device";
   int16_t threshold = 250;
@@ -54,11 +57,14 @@ int main(void)
   {
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
 
-    I2C2->CR1 &= ~(I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
     // Read raw X-axis velocity from gyroscope
+
+    // Prevent chained blocking I2C transmissions from being interrupted
+    __disable_irq();
     int16_t x_val = gyro_readX();
-    // Enable I2C interrupt for slave communication
-    I2C2->CR1 |= (I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
+    int16_t y_val = gyro_readY();
+    int16_t z_val = gyro_readZ();
+    __enable_irq();
 
     // Velocity to position
     if (x_val > threshold || x_val < -threshold) {
@@ -71,6 +77,12 @@ int main(void)
     else if (x_val < -threshold) {
       HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
     }
+
+    char y_target[2] = {(char)(y_val & 0xFF), (char)(y_val >> 8)};
+    char z_target[2] = {(char)(z_val & 0xFF), (char)(z_val >> 8)};
+
+    I2C_Write(I2C2, device_address_y, 2, y_target);
+    I2C_Write(I2C2, device_address_z, 2, z_target);
 
 
     // FIXME: Test code for creating random motor movements

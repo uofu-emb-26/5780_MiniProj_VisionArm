@@ -4,6 +4,8 @@ add_executable(slave
     Src/hal_gpio.c
     Src/stm32f0xx_hal_msp.c
     Src/stm32f0xx_it.c
+    Src/motor.c
+    Inc/motor.h
 )
 
 # Add the map file to the list of files to be removed with 'clean' target
@@ -21,6 +23,7 @@ target_compile_definitions(slave PRIVATE
 # Add linked libraries
 target_link_libraries(slave
     STM32_Drivers
+    SEGGER_RTT
 )
 
 flash_target(slave)

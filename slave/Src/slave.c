@@ -1,19 +1,26 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx.h"
+#include "stm32f0xx_hal_rcc.h"
+#include "stm32f0xx_hal_gpio.h"
+#include "stm32f072xb.h"
+#include "motor.h"
+
+#define SLAVE_ADDRESS 0x10    // *** 0x10 is for Y-axis, 0x12 is for Z-axis
+#define MAX_RX_BYTES 100
 
 void SystemClock_Config(void);
 
-  /**
-  * @brief  The application entry point.
-  * @retval int
-  */
+extern volatile int16_t target_position;    // Desired encoder position
 
-#define MAX_RX_BYTES 100
 volatile uint8_t rx_buffer[MAX_RX_BYTES]; // Array to hold incoming data
 volatile uint8_t rx_index = 0; // Keeps track of which byte we are on
 volatile uint8_t message_complete = 0;
 
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
 int main(void)
 {
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -21,10 +28,62 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
-  
+  SetupLEDs();
+  I2C_SlaveInit();
+  motor_init();
+
+  int16_t threshold = 250;
+
+  while (1)
+  {
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
+
+    if (message_complete)
+    {
+      __disable_irq();
+
+      int16_t rx_value = (int16_t)(rx_buffer[0] | (rx_buffer[1] << 8));
+
+      if (rx_value > threshold || rx_value < -threshold) {
+        target_position += (rx_value / 16);
+      }
+
+      if (rx_value > threshold) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
+      }
+      else if (rx_value < -threshold) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+      }
+
+      message_complete = 0;
+
+      __enable_irq();
+    }
+
+    HAL_Delay(50);
+  }
+  return -1;
+}
+
+void SetupLEDs(void)
+{
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+
+  GPIO_InitTypeDef initLEDStr = {
+    GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9,
+    GPIO_MODE_OUTPUT_PP,
+    GPIO_NOPULL,
+    GPIO_SPEED_FREQ_LOW
+  };
+
+  HAL_GPIO_Init(GPIOC, &initLEDStr);
+}
+
+void I2C_SlaveInit(void)
+{
   // Below is adapted from Lab 5 for slave setup
 
-  // Enable clock for GPIO port B 
+  // Enable clock for GPIO port B
   RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
   // Enable clock for I2C2 peripheral
   RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
@@ -72,9 +131,8 @@ int main(void)
   // Timing from Lab 5
   I2C2->TIMINGR = 0x10420F13;
 
-  // Set slave1 address = 0x10 for now
-  I2C2->OAR1 = (0x10 << 1) | I2C_OAR1_OA1EN;
-  //I2C2->OAR1 = (0x12 << 1) | I2C_OAR1_OA1EN;
+  // Set slave1 address
+  I2C2->OAR1 = (SLAVE_ADDRESS << 1) | I2C_OAR1_OA1EN;
 
   I2C2->CR1 |= (I2C_CR1_ADDRIE | I2C_CR1_RXIE | I2C_CR1_STOPIE | I2C_CR1_NACKIE | I2C_CR1_ERRIE);
 
@@ -84,18 +142,9 @@ int main(void)
   // I2C2 Interrupt in NVIC
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
-
-  while (1)
-  {
-    if (message_complete)
-    {
-      message_complete = 0;
-    }
-  }
-  return -1;
 }
 
-void I2C2_IRQHandler(void) {  
+void I2C2_IRQHandler(void) {
     // Master addresses (Transaction begin)
     if (I2C2->ISR & I2C_ISR_ADDR) {
         rx_index = 0; // Reset array index to 0
@@ -116,7 +165,7 @@ void I2C2_IRQHandler(void) {
     // Generated STOP condition: transaction ends
     if (I2C2->ISR & I2C_ISR_STOPF) {
         I2C2->ICR |= I2C_ICR_STOPCF; // Clears STOP flag
-        message_complete = 1; 
+        message_complete = 1;
     }
     // Error Handlers
     if (I2C2->ISR & I2C_ISR_BERR) {
