@@ -45,7 +45,7 @@
                         "scale": 1
                     },
                     {
-                        "label": "target_rpm",
+                        "label": "target_position",
                         "port": 1,
                         "type": "graph",
                         "encoding": "signed",
@@ -53,7 +53,7 @@
                         "scale": 1
                     },
                     {
-                        "label": "motor_speed",
+                        "label": "motor_position",
                         "port": 2,
                         "type": "graph",
                         "encoding": "signed",
@@ -68,7 +68,7 @@
                     "timespan": 1,
                     "type": "realtime",
                     "annotate": false,
-                    "maximum": 120,
+                    "maximum": 3200,
                     "minimum": 0,
                     "plots": [
                         {
@@ -78,12 +78,12 @@
                         },
                         {
                             "graphId": "2",
-                            "label": "target_rpm",
+                            "label": "target_position",
                             "color": "#955f20"
                         },
                         {
                             "graphId": "3",
-                            "label": "motor_speed",
+                            "label": "motor_position",
                             "color": "#B57EDC"
                         }
                     ]

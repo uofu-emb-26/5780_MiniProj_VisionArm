@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include "main.h"
 #include "stm32f072xb.h"
 #include "stm32f0xx_hal.h"
@@ -8,6 +9,11 @@
 #include "stm32f0xx_it.h"
 #include "i2c_config.h"
 #include "hal_gpio.h"
+#include "motor.h"
+#include "gyro.h"
+#include "SEGGER_RTT.h"
+
+extern volatile int16_t target_position;
 
 void SetupGPIO_USART(void);
 void SetupUSART3(void);
@@ -28,6 +34,9 @@ int main(void)
   SetupLEDs();
   i2c_init();
 
+  motor_init();
+  gyro_init();
+
   // For debugging
   SetupGPIO_USART();
   SetupUSART3();
@@ -35,25 +44,53 @@ int main(void)
   NVIC_EnableIRQ(I2C2_IRQn);
   NVIC_SetPriority(I2C2_IRQn, 0);
 
-  //i2c_setup function shifts adress already
   uint8_t device_address = (0x10);   // STM32 slave device address
+  // FIXME: Add second slave device address
+
   char* data = "Hello from master device";
+  int16_t threshold = 250;
 
   while (1)
   {
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
 
-    I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+    I2C2->CR1 &= ~(I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
+    // Read raw X-axis velocity from gyroscope
+    int16_t x_val = gyro_readX();
+    // Enable I2C interrupt for slave communication
+    I2C2->CR1 |= (I2C_CR1_TXIE | I2C_CR1_RXIE | I2C_CR1_TCIE | I2C_CR1_NACKIE);
 
-    while (I2C_ongoingTransaction) {
-      // Spin loop
+    // Velocity to position
+    if (x_val > threshold || x_val < -threshold) {
+      target_position += (x_val / 16);
     }
 
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+    if (x_val > threshold) {
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);
+    }
+    else if (x_val < -threshold) {
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+    }
 
-    I2C_Write(I2C2, device_address, strlen(data) + 1, data);
 
-    HAL_Delay(500); // Give time for slave's interrupt handler
+    // FIXME: Test code for creating random motor movements
+    // target_position = ((uint16_t)random()) % 3200;
+
+    volatile uint32_t temp = TIM2->CNT; // FIXME: This probably doesn't do anything
+
+    // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+
+    // while (I2C_ongoingTransaction) {
+    //   // Spin loop
+    // }
+
+    HAL_Delay(400);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+
+    // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
+
+    HAL_Delay(100); // Give time for slave's interrupt handler
   }
   return -1;
 }
