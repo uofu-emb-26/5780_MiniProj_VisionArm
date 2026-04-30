@@ -10,7 +10,10 @@ This approach of using multiple STM32 boards allows the system to control any nu
 
 ## Usage
 
-<!--FIXME: Write usage notes-->
+To set up this project, first look at the [BOM](<BoM.csv>) section to gather all necessary components. Begin by dwonaloading the KiCad project [HERE](<Motor Driver PCB.zip>), ordering 3 copies of it, and then soldering them with the parts in the  [BOM](<BoM.csv>) so that they can drive the DC motors that will be used with the STM32 Discovery Boards. After the motor drivers are correctly able to drive the DC motors, integrating basic position control using PID will be the next step in the process. Simply verifying position control works with the buttons on the STM32 Board is fine for this step. The gyroscopes on the STM32 Discovery Boards aren't stellar, so extremly accurate position control may be tough. Once position control of a DC motor using just one STM32 Discovery board is working, correctly using the gyroscope on the board to control the position on the DC motor will be next. The amount of responsiveness is up to whoever is building it. Integrating I2C and delegating two slave STM32 Boards and one master STM32 Boards will be next. See the Pinouts section for an exmaple of how we configured our pins, but different pins can be configured and this project will have the same functionality if configured correctly. Below will be an example of how to wire the boards together using I2C with the two 10k pullup resistors and the pins they are connected to. Some sort of breadboard may be helpful for connecting all three of the boards together using I2C. Once the I2C is working and verified through some simple data over it, send the Master Board's gyroscope readings over. Once that is complete and working, and each of the individual components work with one another, driving the 3 serpeate motors using the Master Boards gyroscope will be complete, just make sure to have one repsective axis driving one respective motor, but even this is up to you as well.
+
+![alt text](<documentation/images/I2C Wiring Schematic.png>) 
+
 
 ## Pinouts
 
