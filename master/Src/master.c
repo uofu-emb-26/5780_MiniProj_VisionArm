@@ -50,7 +50,6 @@ int main(void)
   uint8_t device_address_y = DEVICE_ADDRESS_Y;  // Y-axis controller address
   uint8_t device_address_z = DEVICE_ADDRESS_Z;  // Z-axis controller address
 
-  char* data = "Hello from master device";
   int16_t threshold = 250;
 
   while (1)
@@ -84,25 +83,11 @@ int main(void)
     I2C_Write(I2C2, device_address_y, 2, y_target);
     I2C_Write(I2C2, device_address_z, 2, z_target);
 
-
-    // FIXME: Test code for creating random motor movements
-    // target_position = ((uint16_t)random()) % 3200;
-
-    volatile uint32_t temp = TIM2->CNT; // FIXME: This probably doesn't do anything
-
-    // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
-
-    // while (I2C_ongoingTransaction) {
-    //   // Spin loop
-    // }
-
-    HAL_Delay(400);
+    HAL_Delay(40);
 
     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
 
-    // I2C_Write(I2C2, device_address, strlen(data) + 1, data);
-
-    HAL_Delay(100); // Give time for slave's interrupt handler
+    HAL_Delay(10); // Give time for slave's interrupt handler
   }
   return -1;
 }

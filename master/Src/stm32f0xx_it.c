@@ -161,7 +161,7 @@ void I2C_Setup(I2C_TypeDef* I2C, I2C_Transaction* transaction)
   // Set the address of the slave device (7-bit address is the bits SADD[7:1])
   // Set the number of bytes to write or read
   // Set RD_WRN based on the type of transaction
-  I2C->CR2 &= ~(I2C_CR2_NBYTES | I2C_CR2_SADD | I2C_CR2_RD_WRN);
+  I2C->CR2 &= (0x1F << 27);
   I2C->CR2 |= (transaction->nbytes << I2C_CR2_NBYTES_Pos)
             | (transaction->address << (I2C_CR2_SADD_Pos + 1)
             | (transaction->read << I2C_CR2_RD_WRN_Pos));
