@@ -1,0 +1,11 @@
+Part,Quantity,Mouser/Digikey Part #,Manufacturer Part #,Manufacturer,Short Description,Footprint/Package,Description,Datasheet
+C1,1,140-REA1R0M2CBK0511P,REA010M2CBK-0511P,Lelon,polarized cap - 1uF,radial leaded 0811,Aluminum Electrolytic Capacitors - Radial Leaded 160V 1.0uF 20% 5x11mm,https://www.mouser.com/datasheet/2/231/lelon_REA[1]-1174811.pdf
+"C2, C3, C4",3,399-1249-1-ND,C1206C104K5RAC7800,Kemet,ceramic cap - 100nF,1206 SMD,"
+0.1uF 10% 50V Ceramic Capacitor X7R 1206 (3216 Metric)",https://api.kemet.com/component-edge/download/specsheet/C1206C104K5RACTU.pdf
+"R1, R3, R4, R5",4,311-10KERCT-ND,RC1206JR-0710KL,Yageo,resistor - 10k,1206 SMD,"10 kOhms 5% 0.25W, 1/4W Chip Resistor 1206 (3216 Metric) Thick Film",https://www.yageo.com/upload/media/product/productsearch/datasheet/rchip/PYu-RC_Group_51_RoHS_L_11.pdf
+R2,1,311-.04LWCT-ND,RL1206FR-070R04L,Yageo,current sense resistor - 0.04,1206 SMD,"40 mOhms 1% 0.25W, 1/4W Chip Resistor 1206 (3216 Metric) Automotive AEC-Q200, Current Sense, Moisture Resistant Thick Film",https://www.yageo.com/upload/media/product/productsearch/datasheet/rchip/PYu-RL_Group_521_RoHS_L_2.pdf
+"U5, U6, U7, U8",4,RS2AAR3GCT-ND,RS2AA R3G,Taiwan Semiconductor Corporation,diode,DO-214AC SMA,Diode Standard 50V 1.5A Surface Mount DO-214AC (SMA),https://www.taiwansemi.com/products/datasheet/RS2AA%20SERIES_G14.pdf
+U1,1,511-L298,L298N,STMicroelectronics,L298N,Multiwatt15 Vertical,"Dual full bridge motor driver, H-Bridge",https://www.mouser.com/datasheet/2/389/l298-954744.pdf
+U2,1,926-LM75AIMX/NOPB,LM75AIMX/NOPB,Texas Instruments,LM75A,SOIC8,"Board Mount Temperature Sensors Digital (I2C) Temp Sensor & Thermal Watchdog, SOIC-8 Package",http://www.ti.com/lit/ds/symlink/lm75a.pdf
+"J1, J2, J3, J5",1 (21 pins),649-68001-121HLF,68001-121HLF,Amphenol FCI,generic pin header,2.54mm male,"21-pin header, 2.54mm spacing",https://www.mouser.com/datasheet/2/18/68000-1266375.pdf
+J4,1,992-CON-SOCJ-2155,CON-SOCJ-2155,Gravitech,2.1mm x 5.5mm DC power jack,CON-SOCJ-2155,DC Power Connectors Power Jack/Connector 2.1mm x 5.5mm,https://www.mouser.com/catalog/additional/Gravitech_CON_SOCJ_2155.jpg
